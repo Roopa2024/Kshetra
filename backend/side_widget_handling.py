@@ -3,44 +3,45 @@ import configparser
 from PIL import Image, ImageTk, ImageDraw, ImageFont
 from datetime import datetime
 import win32print, win32api
-from backend import shared, format_amount
+from backend import shared, format_amount, rtgs_handling
 from babel.numbers import format_decimal
 from tkinter import messagebox
+
+parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+print(f"PARENT = {parent_dir}")
+sys.path.append(parent_dir)
+#import PyQt_chequeWriter
+import PyQt_chequeWriter #import BottomWidget
 
 config_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "config", "config.ini"))
 config = configparser.ConfigParser()
 config.read(config_path)
-print(f"PATH = {config_path}")
-global cancel, base_path
-#cancel = 0
+global cancel, line1, line2, text
 cross= 1
-
-def set_base_path():
-    global base_path, image_path, hdfc_path, karnataka_path, canara_path, union_path, font_small, font_small10, font_small11, rtgs_path, rtgs_filled
-    if getattr(sys, 'frozen', False):
-        # If frozen (running as an executable), use _MEIPASS to get the temp directory where PyInstaller extracts files
-        base_path = sys._MEIPASS
-    else:
-        # If not frozen (running as a script), use the current script's directory
-        base_path = os.path.dirname(os.path.abspath(__file__))
 
 def set_cross():
     global cross
     cross = 1
     return cross
 
-def toggle_button_state(btn, label_name):
-    print(f"BUTTON name = {label_name}")
+def toggle_button_state(btn, label_name, bottom_widget, top_widget, sel_bank_index):
+    print(f"BUTTON name = {label_name} and Values = {btn.text()} Bank = {sel_bank_index}")
     global cross
     #cancel = 0
-    if btn.text() == "Turn ON":                          # Check if the button's text is "Turn ON"
+    if btn.text() == "ON":                          # Check if the button's text is "Turn ON"
         if label_name == 'Cancel Cheque':
             cancel = 0
             print(f"CANCEL = {cancel} is turned  OFF")
         elif label_name == "A/C Payee":            
             cross = 0
-            print(f"A/C Payee and cross = {cross} is turned  OFF")
-        btn.setText("Turn OFF")
+            top_widget.toggle_ac_payee()
+            print(f"A/C Payee and cross is turned  OFF")
+        elif label_name == "RTGS":
+            print(f"RTGS turned OFF")
+            top_widget.entries[4].setText('')
+            top_widget.entries[4].setEnabled(True)
+            top_widget.toggle_ac_payee()
+        btn.setText("OFF")
         btn.setStyleSheet("background-color: orange; color: black;")  # Change the button color
     else:
         if label_name == 'Cancel Cheque':           
@@ -48,8 +49,19 @@ def toggle_button_state(btn, label_name):
             print(f"CANCEL = {label_name} is ON")
         elif label_name == "A/C Payee":            
             cross = 1
-            print(f"A/C Payee and cross = {cross} is turned  ON")
-        btn.setText("Turn ON")
+            top_widget.toggle_ac_payee()
+            print(f"A/C Payee and cross is turned  ON")
+        elif label_name == "RTGS":
+            if not top_widget.entries[7].text():
+                messagebox.showerror("Input Error", "Please fill in all required fields.")
+                return
+            cross = 0
+            print(f"RTGS turned ON to open {sel_bank_index}")
+            top_widget.toggle_ac_payee()
+            gvalues = bottom_widget.get_all_entries()
+            print("Retrieved Values:", gvalues)
+            rtgs_handling.update_rtgs_bank(sel_bank_index, top_widget)  #rtgs_path[0]
+        btn.setText("ON")
         btn.setStyleSheet("background-color: green; color: black;") 
 
 def cancel_check(cheque_image, draw, font_large):
@@ -73,7 +85,8 @@ def print_cheque(cheque_image_path):
     # Call the Windows Print Dialog
     win32api.ShellExecute(0, "open", cheque_image_path, None, ".", 1) #'/d:"%s"' % printer_name, ".", 0)
 
-def cross_check(bank_name, cheque_image, draw):
+def cross_check(bank_name, cheque_image, draw, top_widget):
+    #global line1, line2, text
     if bank_name == "HDFC Bank":
         print("HDFC")
         x1_y2 = 130
@@ -106,8 +119,8 @@ def cross_check(bank_name, cheque_image, draw):
     # Set the color for the lines (Red in RGB)
     line_color = (0, 0, 0)  # Red color
     # Draw the two slanting lines
-    draw.line([x1_y2, y1, x2, x1_y2], fill=line_color, width=1)  # First slanting line
-    draw.line([x3_y4, y3, x4, x3_y4], fill=line_color, width=1)  # Second slanting line
+    top_widget.line1 = draw.line([x1_y2, y1, x2, x1_y2], fill=line_color, width=1)  # First slanting line
+    top_widget.line2 = draw.line([x3_y4, y3, x4, x3_y4], fill=line_color, width=1)  # Second slanting line
     try:
         # Use a specific TTF font and specify the font size (e.g., 20)
         font = ImageFont.truetype("arial.ttf", size=40)  # Make sure to specify the correct path to the font
@@ -119,7 +132,7 @@ def cross_check(bank_name, cheque_image, draw):
     
     text_draw = ImageDraw.Draw(text_img)
     # Draw the text on the new image
-    text_draw.text((x_AC, 0), "A/C Payee", font=font, fill=shared.font_color)  
+    top_widget.text = text_draw.text((x_AC, 0), "A/C Payee", font=font, fill=shared.font_color)  
 
     # Rotate the text image to make it slanted (e.g., 45 degrees)
     rotated_text = text_img.rotate(45, expand=True)
@@ -129,17 +142,20 @@ def cross_check(bank_name, cheque_image, draw):
     cheque_image.paste(rotated_text, (0, 0), rotated_text)  # Position it at (100, 50)
 
 # Function to generate cheque
-def generate_cheque_front(bank_idx, date, payee_entry, amt_entry, date_entry):
+def generate_cheque_front(bank_idx, date, top_widget):
     
-    payee = payee_entry.text()
-    amount = float(amt_entry.text())
-    date = date_entry.date()
-    #date = date.toString("dd/MM/yyyy")
+    #Input validation
+    if not top_widget.entries[4].text() or not top_widget.entries[7].text(): #or not cheque_number or not bank_name:
+        messagebox.showerror("Input Error", "Please fill in all required fields.")
+        return
+    
+    payee = top_widget.entries[4].text()            
+    amount = float(top_widget.entries[7].text())    
+    date = top_widget.entries[2].date() 
     date = date.toPyDate() 
-    print (f"Generate Front cheque {bank_idx}, {amount} and {date}")
+    print (f"Generate Front cheque {bank_idx}, {payee} {amount} and {date}")
 
-    set_base_path()
-    font_path = os.path.join(base_path, 'Images','arial.ttf')
+    font_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", 'Images','arial.ttf'))
     font_small = ImageFont.truetype(font_path, 12)
 
     # Create cheque image
@@ -160,14 +176,9 @@ def generate_cheque_front(bank_idx, date, payee_entry, amt_entry, date_entry):
     y_position = 80
     y_date = 42
 
-    #Input validation
-    if not payee or not amount: #or not cheque_number or not bank_name:
-        messagebox.showerror("Input Error", "Please fill in all required fields.")
-        return
-
     if 'cross' in globals() and cross == 1:
         print("cross")
-        cross_check(bank_name, cheque_image, draw)
+        cross_check(bank_name, cheque_image, draw, top_widget)
         draw.text((535, y_position), "XXXXXXX", font=font_small, fill=(0, 0, 0))
 
     # Add payee details
