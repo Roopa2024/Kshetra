@@ -3,14 +3,18 @@ import configparser
 from PIL import Image, ImageTk, ImageDraw, ImageFont
 from datetime import datetime
 import win32print, win32api
-from backend import shared, format_amount, rtgs_handling
+from backend import shared, format_amount, rtgs_handling, bottom_widget_handling, excel_con
 from babel.numbers import format_decimal
 from tkinter import messagebox
+import json
+SAVE_FILE = "saved_data.json"
 
 parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 print(f"PARENT = {parent_dir}")
 sys.path.append(parent_dir)
-#import PyQt_chequeWriter
+font_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", 'Images','arial.ttf'))
+font_small = ImageFont.truetype(font_path, 12)
+font_10 = ImageFont.truetype(font_path, 10)
 import PyQt_chequeWriter #import BottomWidget
 
 config_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "config", "config.ini"))
@@ -58,8 +62,21 @@ def toggle_button_state(btn, label_name, bottom_widget, top_widget, sel_bank_ind
             cross = 0
             print(f"RTGS turned ON to open {sel_bank_index}")
             top_widget.toggle_ac_payee()
-            gvalues = bottom_widget.get_all_entries()
-            print("Retrieved Values:", gvalues)
+            
+            #def on_text_changed():
+            #    print("Roopa Text entered:", bottom_widget.bottom_entries[1][1].text())
+
+            #bottom_widget.bottom_entries[1][1].editingFinished.connect(on_text_changed)
+            name = bottom_widget.bottom_entries[1][2].text() 
+            print(f"IFSC = {name}")
+            try:
+                with open(SAVE_FILE, "r") as f:
+                    data = json.load(f)
+                    print("Retrieved from JSON:", data.get("Name1_entry", "NA"))
+                    print("Retrieved Data:", data)
+            except (FileNotFoundError, json.JSONDecodeError):
+                print("No saved data found.")
+
             rtgs_handling.update_rtgs_bank(sel_bank_index, top_widget)  #rtgs_path[0]
         btn.setText("ON")
         btn.setStyleSheet("background-color: green; color: black;") 
@@ -155,8 +172,8 @@ def generate_cheque_front(bank_idx, date, top_widget):
     date = date.toPyDate() 
     print (f"Generate Front cheque {bank_idx}, {payee} {amount} and {date}")
 
-    font_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", 'Images','arial.ttf'))
-    font_small = ImageFont.truetype(font_path, 12)
+    #font_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", 'Images','arial.ttf'))
+    #font_small = ImageFont.truetype(font_path, 12)
 
     # Create cheque image
     cheque_image = Image.new('RGB', (792, 612), color='white')
@@ -234,3 +251,133 @@ def generate_cheque_front(bank_idx, date, top_widget):
     # Save cheque as image
     cheque_image.save(f"cheque_{payee}.pdf")
     print_cheque(f"cheque_{payee}.pdf") 
+
+def draw_line(text, x_position, y_position, draw):
+    # Get the text size to calculate underline position
+    # Use textbbox to calculate text size
+    text_bbox = draw.textbbox((x_position, y_position), text, font=font_small)
+    text_width = text_bbox[2] - text_bbox[0]  # Calculate text width
+    text_height = text_bbox[3] - text_bbox[1]  # Calculate text height
+
+    # Draw an underline below the text
+    underline_y_position = y_position + text_height + 2  # Slightly below the text
+    draw.line(
+    [(x_position, underline_y_position), (x_position + text_width, underline_y_position)],
+    fill="black",
+    width=1
+    )
+
+def generate_cheque_back(bank_idx, date, top_widget):
+    #Input validation
+    if not top_widget.entries[4].text() or not top_widget.entries[7].text(): #or not cheque_number or not bank_name:
+        messagebox.showerror("Input Error", "Please fill in all required fields.")
+        return
+    
+     # Create cheque image
+    #cheque_image = Image.new('RGB', (792, 612), color='white')
+    cheque_image = Image.new('RGB', (600, 595), color='white')      #A5 height, but width slightly more
+
+    draw = ImageDraw.Draw(cheque_image)
+    chq_num = bottom_widget_handling.get_value('Cheque_entry')
+    if not chq_num:
+        messagebox.showerror("Input Error", "Please fill in the Cheque Number.")
+        return
+
+    amt_entry = float(top_widget.entries[7].text())
+    date_entry = top_widget.entries[2].text()
+    biller_name = bottom_widget_handling.get_value('Name_entry')
+    payee_name = bottom_widget_handling.get_value('Name1_entry')
+    globe_id = "SGP"
+
+    globe_id = excel_con.increment_counter()
+    print("Data to Save in Excel")
+    kwargs = {
+        'globe_id' : globe_id,
+        'globe_stat' : 'Approved',
+        'Payee' : payee_name,
+        'Amount' : amt_entry,
+        'Date' : date_entry,
+        'Bank' : bottom_widget_handling.get_value('Bank_entry'),
+        'Cheque #' : bottom_widget_handling.get_value('Cheque_entry'),
+        'IFSC code' : bottom_widget_handling.get_value('IFSC1_entry'),
+        'Biller name' : biller_name,
+        'Invoice #' : bottom_widget_handling.get_value('Invoice_entry'),
+        'GST/PAN' : bottom_widget_handling.get_value('GST_entry'),
+        'Payee Name' : payee_name,
+        'Bank Name' : bottom_widget_handling.get_value('Bank1_entry'),
+        'Branch Name' : bottom_widget_handling.get_value('Branch_entry'),
+        'Payee IFSC' : bottom_widget_handling.get_value('IFSC_entry'),
+        'Digital Sign' : bottom_widget_handling.get_value('Dig_entry'),
+    }
+    shared.field_data_hdfc.update(kwargs)
+
+    line_height = 15  # Line spacing
+    #font_10 = bank_handling.font_small_10 
+    x_position = 60
+    y_position = 30
+
+    draw.text((x_position, y_position), f"GlobeID: {globe_id}       Amount: {amt_entry}", font=font_10, fill="black")
+    draw_line("Globe",x_position, y_position, draw)
+    y_position += 20
+
+    draw.text((x_position, y_position), "Bill Details:", font=font_10, fill="black")
+    draw_line("Bill Details",x_position, y_position, draw)
+
+    x_position = 250
+    #y_position = 50
+    draw.text((x_position, y_position), "Payee Details:", font=font_10, fill="black")
+    draw_line("Payee Details",x_position, y_position, draw)
+    x_position = 430
+    draw.text((x_position, y_position), "Payment Details", font=font_10, fill=(0, 0, 0))
+    draw_line("Payment Details",x_position, y_position, draw)
+
+    #Bill Details
+    x_position = 60
+    y_position += 20
+    draw.text((x_position, y_position), f"Name: {biller_name}", font=font_10, fill="black")
+    y_position += 20
+    draw.text((x_position, y_position), f"Invoice#: {bottom_widget_handling.get_value('Invoice_entry')}", font=font_10, fill=(0, 0, 0))
+    y_position += 20
+    draw.text((x_position, y_position), f"GST: {bottom_widget_handling.get_value('GST_entry')}", font=font_10, fill=(0, 0, 0))
+    y_position += 20
+    draw.text((x_position, y_position), f"PAN: {bottom_widget_handling.get_value('PAN_entry')}", font=font_10, fill=(0, 0, 0))
+    y_position += 20
+
+    #Payee Details
+    x_position = 250
+    y_position = 70
+    draw.text((x_position, y_position), f"Name: {payee_name}", font=font_10, fill=(0, 0, 0))
+    y_position += 20
+    draw.text((x_position, y_position), f"Bank: {bottom_widget_handling.get_value('Bank_entry')}", font=font_10, fill=(0, 0, 0))
+    y_position += 20
+    draw.text((x_position, y_position), f"Branch: {bottom_widget_handling.get_value('Branch_entry')}", font=font_10, fill=(0, 0, 0))
+    y_position += 20
+    draw.text((x_position, y_position), f"IFSC: {bottom_widget_handling.get_value('IFSC_entry')}", font=font_10, fill=(0, 0, 0))
+    y_position += 20
+    draw.text((x_position, y_position), "Digital Signature: ", font=font_10, fill=(0, 0, 0))
+    draw_line("Digital Signature:",x_position, y_position, draw)
+    y_position += 20
+    draw.text((x_position, y_position), f"{bottom_widget_handling.get_value('Dig_entry')}", font=font_10, fill=(0, 0, 0))
+
+    #Payment Details
+    x_position = 430
+    y_position = 70
+    draw.text((x_position, y_position), f"Cheque#: {bottom_widget_handling.get_value('Cheque_entry')}", font=font_10, fill=(0, 0, 0))
+    y_position += 20
+    draw.text((x_position, y_position), f"IFSC: {bottom_widget_handling.get_value('IFSC1_entry')}", font=font_10, fill=(0, 0, 0))
+    y_position += 20
+    draw.text((x_position, y_position), f"Branch: {bottom_widget_handling.get_value('Branch1_entry')}", font=font_10, fill=(0, 0, 0))
+    y_position += 20 
+    draw.text((x_position, y_position), f"Cheque Date: {bottom_widget_handling.get_value('ChequeDate_entry')}", font=font_10, fill=(0, 0, 0))
+    y_position += 20
+    draw.text((x_position, y_position), f"Bank: {bottom_widget_handling.get_value('Bank1_entry')}", font=font_10, fill=(0, 0, 0))
+    y_position += 20
+    draw.text((x_position, y_position), f"Compliance: ", font=font_10, fill="black")
+    draw_line("Compliance:",x_position, y_position, draw)
+    y_position += 20 
+    
+    # Save cheque as image
+    cheque_image.save(f"chequeBack_{chq_num}.pdf")
+    print_cheque(f"chequeBack_{chq_num}.pdf") 
+    
+    excel_con.save_to_excel(**kwargs)
