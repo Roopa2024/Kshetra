@@ -1,11 +1,13 @@
 from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QHBoxLayout, QLineEdit, QLabel, QDesktopWidget, QLineEdit, QDateEdit, QSizePolicy, QGridLayout, QSpacerItem, QComboBox, QPushButton, QCheckBox
-from PyQt5.QtCore import Qt, QPointF, QDate, pyqtSignal
+from PyQt5.QtCore import Qt, QPointF, QDate, pyqtSignal, QTimer
 from PyQt5.QtGui import QPixmap, QPainter, QFont, QColor, QDoubleValidator
 from functools import partial
 import os, sys
 import configparser
 
 from backend import bottom_widget_handling, side_widget_handling
+import json
+SAVE_FILE = "saved_data.json"
 
 configuration_path = os.path.dirname(os.path.abspath(__file__))+"\config\config.ini"
 config = configparser.ConfigParser()
@@ -18,32 +20,28 @@ Exp_type = config.get('UI', 'Exp_type').split(',')
 rows_columns = list(map(int, config.get('UI', 'rows_columns').split(',')))
 combo_options = config.get('UI', 'combo_options').split(',')
 bank_bg_path = config.get('Bank', 'Bank_bg_path').split(',')
-
+entries = config.get('UI', 'entries').split(',')
+#entries = ["Name1_entry", "Bank_entry", "Branch_entry", "IFSC_entry"]
 class TopWidget(QWidget):
-    date_changed_signal = pyqtSignal(str)
+    date_changed_signal = pyqtSignal(QDate)
 
     def __init__(self, parent=None):
         super().__init__(parent)
+        self.show_ac_payee = True               # Initial flag state
 
-        self.bottom_widget = BottomWidget(top_widget=self, parent=self)  # Pass reference of TopWidget
-        #self.side_widget = SideWidget(self)
-        #widget = QWidget(self)
+        self.bottom_widget = BottomWidget(top_widget=self, parent=self)  # Moved down to be able to read entries
+        ##self.side_widget = SideWidget(self)
+        ##widget = QWidget(self)
         layout = QGridLayout()
 
         # Load background image using PaintEvent
-        #self.bg_pixmap = QPixmap(bank_bg_path[0])
         self.setFixedSize(1500, 500)
-        #self.IFSC = bottom_widget_handling.get_ifsc(0)
-        self.set_background(bank_bg_path[0], 0) #self.IFSC)
-        #self.IFSC = bottom_widget_handling.get_ifsc(0)
+        self.set_background(bank_bg_path[0], 0)
 
-        self.setVisible(True)
-        print(f"TW: visible {self.isVisible()}")
+        #self.setVisible(True)
+        #print(f"TW: visible {self.isVisible()}")
         # Initially, you can hide it
-        self.bottom_widget.setVisible(True)  
-        #self.side_widget.setVisible(True)  
-
-        #self.label = QLabel("Selected Date: ", self)
+        #self.bottom_widget.setVisible(True)  
 
         self.entries = []
         for i in range (11):
@@ -52,19 +50,22 @@ class TopWidget(QWidget):
                 line_edit.setDate(QDate.currentDate()) 
                 line_edit.setFixedSize(300, 40)
                 # Connect dateChanged signal to function
-                line_edit.dateChanged.connect(self.update_date)
+                line_edit.dateChanged.connect(self.emit_date_change) #update_date)
                 #self.label = QLabel(f"{line_edit.date().toString('yyyy-MM-dd')}", self)
             else:
                 line_edit = QLineEdit(self)
                 line_edit.setPlaceholderText(f"Enter text {i}")
                 line_edit.setMaximumSize(400, 50)
             self.entries.append(line_edit)  # Add to the list
-           
+            print(f" Top widget INDX = {i}  Value ='{line_edit.text()}'")
+
         self.entries[4].setPlaceholderText("Payee") 
         self.entries[4].setFixedSize(500, 40)
         self.entries[7].setPlaceholderText("Amount") 
         validator = QDoubleValidator()                                     # Allows only integer input
         self.entries[7].setValidator(validator)
+
+        print("TopWidget entries:", self.entries[2].text())
 
         # Add widgets to the grid layout
         self.spacer = QSpacerItem(0, 90, QSizePolicy.Minimum, QSizePolicy.Fixed) 
@@ -92,10 +93,19 @@ class TopWidget(QWidget):
 
         self.setLayout(layout)
         self.setFixedSize(1500, 500) 
+        print("TopWidget entries 2 :", self.entries[2].text())
 
         for index in range(11):
             if index not in [2,4,7]:
                 self.entries[index].setVisible(False)
+                print(f"INDEX TW = {index} : {self.entries[index].isVisible()}")
+
+        #self.bottom_widget = BottomWidget(top_widget=self, parent=self)  # Pass reference of TopWidget
+
+    def emit_date_change(self, new_date: QDate):
+        """Emit signal when date is changed."""
+        print(f"🔄 Date changed to: {new_date.toString('yyyy-MM-dd')}")  # Debugging
+        self.date_changed_signal.emit(new_date)
 
     def update_date(self, new_date):
         self.selected_date = new_date.toString("yyyy-MM-dd")
@@ -118,20 +128,30 @@ class TopWidget(QWidget):
         else:
             print(f"set_background: Image updated to {self.bg_pixmap}")
 
-        if IFSC != 0 and hasattr(self.bottom_widget, "entries"):  # Ensure BottomWidget has entries
-            #print(f"set_bg : Found it at {self.bottom_widget.entries[1][2].text()} and set it to {IFSC}")
-            #self.bottom_widget.entries[1][2].setText(IFSC)
-            #print(f"set_bg Is Visible: {self.bottom_widget.entries[1][2].isVisible()}")
-            #print(f"set_bg Is Enabled: {self.bottom_widget.entries[1][2].isEnabled()}")
-            #self.bottom_widget.update()
-            self.bottom_widget.update_ifsc(IFSC)
-            #QApplication.processEvents() 
-        else:
-            self.IFSC = bottom_widget_handling.get_ifsc(0)
-            print("entries not found in BottomWidget")
+        #if IFSC != 0 and hasattr(self.bottom_widget, "bottom_entries"):  # Ensure BottomWidget has entries
+        #    #print(f"set_bg : Found it at {self.bottom_widget.entries[1][2].text()} and set it to {IFSC}")
+        #    self.bottom_widget.bottom_entries[1][2].setStyleSheet("")
+        #    self.bottom_widget.bottom_entries[1][2].clearFocus()
+        #    self.bottom_widget.bottom_entries[1][2].setText(IFSC)
+        #    self.bottom_widget.bottom_entries[1][2].setFocus()
+        #    self.bottom_widget.bottom_entries[1][2].update()
+        #    #QApplication.processEvents()
+        #    self.bottom_widget.bottom_entries[1][2].editingFinished.emit()
+        #    # Some background process happens...
+        #    self.bottom_widget.update_button.click()  # Triggers manual_update()
+        #else:
+        #    self.IFSC = bottom_widget_handling.get_ifsc(0)
+        #    print("entries not found in BottomWidget")
 
+        #print(f"IFSC after change is {self.bottom_widget.bottom_entries[1][2].text()}")
         self.update() 
         self.paintEvent(None)
+    
+    def toggle_ac_payee(self):
+        print("toggle_ac_payee")
+        self.show_ac_payee = not self.show_ac_payee  # Toggle visibility flag
+        self.update()
+        self.repaint()
 
     def paintEvent(self, event):
         painter = QPainter(self)
@@ -143,16 +163,17 @@ class TopWidget(QWidget):
         font = QFont('Arial', 12)                                   # Set the font for the text
         painter.setFont(font)
 
-        painter.setPen(QColor(0, 0, 0))                             # Set pen to black for lines
-        painter.drawLine(0, 80, 80, 0)                              # First slanting line
-        painter.drawLine(0, 120, 120, 0)                            # Second slanting line
+        if self.show_ac_payee: 
+            painter.setPen(QColor(0, 0, 0))                             # Set pen to black for lines
+            painter.drawLine(0, 80, 80, 0)                              # First slanting line
+            painter.drawLine(0, 120, 120, 0)                            # Second slanting line
 
-        text_position = QPointF(10, 100)                            # Position where you want to draw the text
-        painter.translate(text_position)
-        painter.rotate(-45)                                         # Negative value for rotating upwards
-        painter.drawText(0, 0, "A/C Payee")                         # Draw the text
+            text_position = QPointF(10, 100)                            # Position where you want to draw the text
+            painter.translate(text_position)
+            painter.rotate(-45)                                         # Negative value for rotating upwards
+            painter.drawText(0, 0, "A/C Payee")                         # Draw the text
 
-        painter.resetTransform()                                    # Reset the rotation before drawing the lines
+            painter.resetTransform()                                    # Reset the rotation before drawing the lines
 
         text_position = QPointF(100, 100)
         painter.translate(text_position)
@@ -164,15 +185,14 @@ class BottomWidget(QWidget):
     def __init__(self, top_widget, parent=None):
         super().__init__(parent)
         self.top_widget = top_widget 
+        #print("BottomWidget entries:", self.top_widget.entries[2].text())
 
         widget = QWidget(self)
         layout = QGridLayout()
         self.setLayout(layout)
 
-        self.top_widget.setVisible(True)
+        #self.top_widget.setVisible(True)
         self.setVisible(True)
-        print(f"BW: TopWidget visible: {self.top_widget.isVisible()}")
-        print(f"BottomWidget visible: {self.isVisible()}")
 
         column = 0
         for i in range(3):
@@ -188,13 +208,36 @@ class BottomWidget(QWidget):
             column = column + 2
 
         widget_counter = 0
-        self.entries = [] 
+        self.bottom_entries = [] 
+        self.stored_values = {}
+
+        def on_text_changed(entry_key, x, y):
+            Value = self.sender()  # Get the widget that triggered the event
+            if Value:
+                text = Value.text() 
+            try:
+                with open(SAVE_FILE, "r") as f:
+                    data = json.load(f)
+                    print("JSON data", data)
+            except (FileNotFoundError, json.JSONDecodeError):
+                data = {}                       
+            data[entry_key] = text          # Store the new value
+            with open(SAVE_FILE, "w") as f:
+                json.dump(data, f, indent=4)  # Save data persistently
+            print("Saved in JSON:", entry_key, text)
 
         for row, col_count in enumerate(rows_columns, start=1):             # Iterate through rows (4 rows in total)
             row_entries = []
             for col in range(col_count):                              # For each row, iterate through the number of columns
                 widget_counter, row_entries = self.add_fields(labels[widget_counter], col, row, layout, widget_counter, row_entries)
-            self.entries.append(row_entries)
+            self.bottom_entries.append(row_entries)
+        r = 0
+        for i in range(3):                              # Looping through 4 rows to get updated values from the UI
+            for j in range(4):
+                    self.bottom_entries[j][i].editingFinished.connect(lambda j=j, name=entries[r]: on_text_changed(name, j, i))
+                    r = r + 1
+        self.bottom_entries[0][3].editingFinished.connect(lambda name=entries[12]: on_text_changed(name, 0, 3))
+        self.bottom_entries[1][3].editingFinished.connect(lambda name=entries[13]: on_text_changed(name, 1, 3))
 
         vertical_spacer = QSpacerItem(20, 40, QSizePolicy.Minimum, QSizePolicy.Expanding)
         layout.addItem(vertical_spacer, 5, 0, 1, 2)
@@ -203,36 +246,108 @@ class BottomWidget(QWidget):
         self.setStyleSheet("background-color: white;")
         widget.setLayout(layout)
         widget.setFixedSize(1500, 500)
-    
+
+    def get_date_from_top(self):
+        """Retrieve date from the top widget."""
+        date_value = self.top_widget.entries[2].text()
+        print("Date from top widget:", date_value)
+        return date_value
+
+    def update_date(self, new_date: QDate):
+        selected_date = new_date.toString("yyyy-MM-dd")
+        """Update label when the date changes."""
+        #if isinstance(new_date, str):  # ✅ Convert string to QDate if necessary
+        #    new_date = QDate.fromString(new_date, "yyyy-MM-dd")
+        #formatted_date = new_date.toString("yyyy-MM-dd") 
+        #label1 = QLabel(selected_date, self)
+        self.bottom_entries[0][3].setText("{selected_date}")
+        self.bottom_entries[0][3].update()
+        self.bottom_entries[0][3].repaint()
+        QApplication.processEvents()
+
+        #self.top_widget.entries[2].setText("{selected_date}")
+        if len(self.top_widget.entries) > 2 and isinstance(self.top_widget.entries[2], QDateEdit):
+            self.top_widget.entries[2].setDate(new_date)  # ✅ Use setDate() instead of setText()
+            print(f"✅ Updated TopWidget date entry to: {selected_date}")
+        else:
+            print("❌ TopWidget does not have a QDateEdit at index 2!")
+        print(f"✅ BottomWidget updated with: {selected_date}") 
+
     def add_fields(self, label_name, col, row, layout, widget_counter, row_entries):
         label = QLabel(label_name, self)
-        line_edit = QLineEdit(self)
-        #print(f"Before: {line_edit.isVisible()}") 
-        self.setVisible(True)
-        line_edit.setVisible(True)
-        #print(f"After in function add_fields: {line_edit.isVisible()}") 
-        line_edit.setStyleSheet("border: 2px solid black;")
-        layout.addWidget(label, row, col * 2)                                  # Place label in column (2 * col)
-        layout.addWidget(line_edit, row, col * 2 + 1)
+        layout.addWidget(label, row, col * 2)                                 # Place label in column (2 * col)
         label.setMaximumSize(150, 30)
+        label.setVisible(True) 
+        #if label_name == 'Cheque Date:':
+        #        print ("Label is", label_name, row, col)
+        #    #self.IFSC = bottom_widget_handling.get_ifsc(0)
+        #    date = self.get_date_from_top()
+        #    label1 = QLabel(date, self)
+        #    layout.addWidget(label1, row, col * 2 + 1) 
+        #    row_entries.append(label1)
+        #else:
+        line_edit = QLineEdit(self)
+        line_edit.setStyleSheet("border: 2px solid black;")
+        layout.addWidget(line_edit, row, col * 2 + 1)
         line_edit.setMaximumSize(200, 30)
-        if label_name == 'IFSC:':
-            print(f"Update IFSC entry {widget_counter} = {row} {col}")  
-            self.IFSC = bottom_widget_handling.get_ifsc(0)
-            line_edit.setVisible(True)
-            line_edit.setText(self.IFSC)    
+        line_edit.setVisible(True)
         row_entries.append(line_edit)
+        #if label_name == 'IFSC:': 
+            #self.IFSC = bottom_widget_handling.get_ifsc(0)
+            #line_edit.setVisible(True)
+            #line_edit.setText(self.IFSC)    
+        
         #QTimer.singleShot(100, self.ensure_visibility)
         widget_counter += 1
         return widget_counter, row_entries
     
+    def force_focus_loss(self):
+        for row_entries in self.bottom_entries:
+            for entry in row_entries:
+                entry.clearFocus() 
+
+    def handle_button_click(self, label, btn):
+        print(f"Button {label} clicked")
+        self.force_focus_loss()  # Ensure all fields register their input
+        QTimer.singleShot(100, self.fetch_entries)
+
+    def fetch_entries(self):
+        values = self.get_all_entries()
+        print("Latest values after delay:", values)
+
+    def get_all_entries(self):
+        all_values = []
+        for row_entries in self.bottom_entries:
+            row_values = [entry.text().strip() for entry in row_entries if isinstance(entry, QLineEdit)]
+            all_values.append(row_values)
+        print("DEBUG: Retrieved Values:", all_values)
+        return all_values
+
+    def get_all_entries1(self):
+        all_values = []
+        print (f" VALUE = {self.bottom_entries[0][2].text()}")
+        #print(f"VALUE = {values}")
+        for i, row_entries in enumerate(self.bottom_entries):
+            row_values = []
+            for j, entry in enumerate(row_entries):
+                if isinstance(entry, QLineEdit):  # Ensure it's a valid input field
+                    text = entry.text().strip()  
+                    print(f"Debug - Row {i}, Col {j}, Value: '{text}'")  # Debugging
+                    row_values.append(text)
+                else:
+                    print(f"Error: Entry at Row {i}, Col {j} is not a QLineEdit")
+                    row_values.append(None)
+            all_values.append(row_values)
+        print("Final Retrieved Values:", all_values)
+        return all_values
+
     def update_ifsc(self, IFSC):
         #super().paintEvent(event)  # Call parent method
         self.IFSC = IFSC
         print(f"update_ifsc {self.IFSC}")
         if hasattr(self, "entries"):
-            if len(self.entries) > 1 and len(self.entries[1]) > 2:
-                entry = self.entries[1][2]
+            if len(self.bottom_entries) > 1 and len(self.bottom_entries[1]) > 2:
+                entry = self.bottom_entries[1][2]
                 entry.setVisible(True)
                 entry.setEnabled(True)
                 entry.setReadOnly(False)
@@ -261,10 +376,13 @@ class BottomWidget(QWidget):
 
     def ensure_visibility(self):
         """Ensure all entries are visible after the event loop starts"""
-        for row in self.entries:
+        for row in self.bottom_entries:
             for entry in row:
                 entry.setVisible(True)
                 print(f"Entry Visible: {entry.isVisible()}")  # Now should return True
+
+    def on_text_changed(self):
+        print("Text entered:", self.bottom_entries[1][1].text())
 
 class SideWidget(QWidget):
     def __init__(self, top_widget, parent=None):
@@ -279,21 +397,16 @@ class SideWidget(QWidget):
 
         widget = QWidget(self)
         self.layout = QGridLayout()
-
-        #self.label = QLabel("Date: Not Set", self)
-        #self.top_widget.date_changed_signal.connect(self.update_date_label) 
-        #self.update_date_label("03/06/25")
-        print(f" New date = {self.current_date}")
         self.use_stored_date()
 
         #causing extra screen
-        top_widget.setVisible(True)
+        #top_widget.setVisible(True)
         self.bottom_widget.setVisible(True)
-        self.bottom_widget.entries[1][2].setVisible(True)
+        self.bottom_widget.bottom_entries[1][2].setVisible(True)
         print(f"SW: SideWidget {self.isVisible()}")
         print(f"SW: TopWidget visible: {top_widget.isVisible()}")
         print(f"SW: BottomWidget visible: {self.bottom_widget.isVisible()}")
-        print(f"Entry visible: {self.bottom_widget.entries[1][2].isVisible()}")
+        print(f"Entry visible: {self.bottom_widget.bottom_entries[1][2].isVisible()}")
 
         self.combo_box = QComboBox(self)
         for i in range(4):
@@ -307,18 +420,21 @@ class SideWidget(QWidget):
         self.toggle_buttons = []  # Store all buttons
         j = 0
         for i in range(7):
-            btn = QPushButton("Turn OFF", self)  # Create a new button
+            btn = QPushButton("OFF", self)  # Create a new button
             btn.setStyleSheet("background-color: orange; color: black;")
             label_name = toggle[i]
             label = QLabel(toggle[i], self)
             btn.setFixedSize(100, 40)
             btn.setCheckable(False)
+            print(f"Side Widget INDX = {i} , Label = {label_name}, Button = {btn}")
             if label_name == "A/C Payee":
-                btn.setText("Turn ON") 
+                btn.setText("ON") 
                 btn.setStyleSheet("background-color: green; color: black;")
                 cross = side_widget_handling.set_cross()
-            #btn.clicked.connect(self.toggle_button_state(btn))
-            btn.clicked.connect(lambda checked=False, b=btn, lbl=label_name: side_widget_handling.toggle_button_state(b, lbl))
+            #Print - Front
+            btn.clicked.connect(lambda checked=False, b=btn, lbl=label_name: side_widget_handling.toggle_button_state(b, lbl, self.bottom_widget, top_widget, self.combo_box.currentIndex()))
+            #btn.clicked.connect(partial(self.bottom_widget.handle_button_click, label_name, btn))
+
             j = j+1
             self.layout.addWidget(label, j, 0)
             self.layout.addWidget(btn, j, 1)
@@ -330,9 +446,7 @@ class SideWidget(QWidget):
                 border: 2px solid blue; border-radius: 5px; padding: 10px; background-color: white;
             } """)
         self.print_button.setFixedSize(300, 40)
-        #self.print_button.clicked.connect(side_widget_handling.generate_cheque_front(self.IFSC, new_date))
-        #self.print_button.clicked.connect(lambda: side_widget_handling.generate_cheque_front(self.IFSC, new_date))
-        self.print_button.clicked.connect(partial(side_widget_handling.generate_cheque_front, self.IFSC, self.current_date, self.top_widget.entries[4], self.top_widget.entries[7], self.top_widget.entries[2]))
+        self.print_button.clicked.connect(partial(side_widget_handling.generate_cheque_front, self.IFSC, self.current_date, self.top_widget))
 
         i = i+2
         self.layout.addWidget(self.print_button,i,0,1,2)
@@ -366,15 +480,12 @@ class SideWidget(QWidget):
         self.print_button = QPushButton("PRINT - Back ", self)
         self.print_button.setStyleSheet("""
             QPushButton {
-                border: 2px solid blue;
-                border-radius: 5px;
-                padding: 10px;
-                background-color: white;
-            }
-        """)
+                border: 2px solid blue;  border-radius: 5px; padding: 10px; background-color: white;
+            } """)
         self.print_button.setFixedSize(300, 40)
-        #self.print_button.clicked.connect(self.toggle_button_state(self.print_button))
-        self.print_button.clicked.connect(lambda checked=False, b=self.print_button: side_widget_handling.toggle_button_state(self.print_button))
+        # Print - Back button
+        self.print_button.clicked.connect(partial(side_widget_handling.generate_cheque_back, self.IFSC, self.current_date, self.top_widget))
+        #self.print_button.clicked.connect(lambda checked=False, b=self.print_button, lbl=label_name: side_widget_handling.toggle_button_state(b, lbl, self.bottom_widget, top_widget, self.combo_box.currentIndex()))
 
         
         self.layout.addWidget(self.print_button,i+14,0,1,2)
@@ -382,13 +493,22 @@ class SideWidget(QWidget):
         self.setStyleSheet("background-color: white;")
         widget.setLayout(self.layout)
 
-    def update_date_label(self, new_date):
-        #self.label.setText(f"Date: {new_date}")  # Update label dynamically
-        self.current_date = new_date 
-        print(f"SideWidget Received Date: {self.current_date}")
+    #def update_date_label(self, new_date):
+    #    #self.label.setText(f"Date: {new_date}")  # Update label dynamically
+    #    self.current_date = new_date 
+    #    print(f"SideWidget Received Date: {self.current_date}")
 
     def use_stored_date(self):
         print(f"Using stored date: {self.current_date}")
+
+    def manual_update(self):
+        """Explicitly update QLineEdit text when the button is clicked."""
+        print("Before update:", self.bottom_widget.bottom_entries[1][2].text())  # Debugging
+        self.bottom_widget.bottom_entries[1][2].setText("New IFSC Value")  # Set new text
+        QApplication.processEvents()
+        self.bottom_widget.bottom_entries[1][2].update()  # Force update
+        self.bottom_widget.bottom_entries[1][2].repaint()  # Repaint UI
+        print("After update:", self.bottom_widget.bottom_entries[1][2].text())
 
     def update_background(self, bottom_widget):
         selected_bg = self.combo_box.currentIndex()
@@ -401,6 +521,13 @@ class SideWidget(QWidget):
             print(f"update_bg: IMAGE {abs_image_path}")
             if self.top_widget:                                     # Ensure TopWidget exists
                 self.IFSC = bottom_widget_handling.get_ifsc(selected_bg)
+                bottom_widget.update_button = QPushButton("Update IFSC")
+                bottom_widget.update_button.clicked.connect(self.manual_update)
+                print(f"Sidewidget IFSC setText to {self.IFSC}")
+                bottom_widget.bottom_entries[1][2].clearFocus()
+                bottom_widget.bottom_entries[1][2].setText(self.IFSC)
+                bottom_widget.bottom_entries[1][2].setFocus()
+
                 self.top_widget.set_background(bg_image, self.IFSC)
 
     def create_fields(self, label, layout, i):
@@ -430,14 +557,6 @@ class SideWidget(QWidget):
     def on_selection_changed(self, index):
         selected_text = self.combo_box.currentText()
 
-    def toggle_button_state1(self,btn):
-        if btn.text() == "Turn ON":                          # Check if the button's text is "Turn ON"
-            btn.setText("Turn OFF")
-            btn.setStyleSheet("background-color: orange; color: black;")  # Change the button color
-        else:
-            btn.setText("Turn ON")
-            btn.setStyleSheet("background-color: green; color: black;")  # Change the button color
-
     def on_checkbox_state_changed(self, state):
         if state == 2:                                                      # Update the label based on the checkbox state, 2 means checked
             self.label.setText("Checkbox is checked")
@@ -455,7 +574,6 @@ class Window(QWidget):
         self.screen_geometry = QDesktopWidget().availableGeometry() # Get screen geometry to constrain the window size
         self.max_width = self.screen_geometry.width()       # Maximum available screen width
         self.max_height = self.screen_geometry.height()     # Maximum available screen height
-
         self.setGeometry(self.screen_geometry)              # Full screen based on available screen space
 
         # **Main Layout**
@@ -472,13 +590,11 @@ class Window(QWidget):
         # Set main layout
         main_layout.addLayout(vertical_layout)              # Add top and bottom part
         main_layout.addWidget(self.sidebar_widget)          # Add sidebar on the right side
+        self.setLayout(main_layout)                         # Set layout for the main window        
+        self.setWindowState(Qt.WindowMaximized)             # Initially maximize the window
 
-        self.setLayout(main_layout)                         # Set layout for the main window
+        #self.top_widget.date_changed_signal.connect(self.top_widget.bottom_widget.update_date)
         
-        # Initially maximize the window
-        self.setWindowState(Qt.WindowMaximized)
-
-
     def resizeEvent(self, event):
         """Handle window resizing."""
         super().resizeEvent(event)
@@ -512,6 +628,16 @@ class Window(QWidget):
                 self.resize(self.normal_width, self.normal_height)  # Restore to normal size
                 self.move(0, 100)                               # Optionally, set a specific position when restored
 
+    def closeEvent(self, event):
+        """Called when the app is closing."""
+        print("App is closing...")
+
+        # ✅ Reset the JSON file before closing
+        with open(SAVE_FILE, "w") as f:
+            json.dump({}, f)  # Clears all data
+
+        event.accept()  # Accept the close event
+        
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     window = Window()
