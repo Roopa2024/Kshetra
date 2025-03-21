@@ -31,13 +31,13 @@ except OSError:
     print(f"Font {custom_font_path} not found, using default.")
     font = ImageFont.load_default()
 
-def submit_file(root, file_path, sheet_name):
+def submit_file(root, file_path, sheet_name, with_bg):
     file_path_value = file_path.get()
     sheet = sheet_name.get()  
     print (f"PATH {file_path_value} and sheet is {sheet} ")
 
     if file_path_value and os.path.isfile(file_path_value):
-        process_file(root, file_path_value, sheet)
+        process_file(root, file_path_value, sheet, with_bg)
     else:
         print("Please select a valid file.")
         messagebox.showinfo("Error", "Please select a valid file.")
@@ -64,7 +64,7 @@ def draw_text(barcode_path, text_label):
     new_image.paste(barcode_image, (0, 45))                 # Paste barcode BELOW the text
     new_image.save(barcode_path)
   
-def process_file(root, file_path, sheet_name):
+def process_file(root, file_path, sheet_name, with_bg):
     pdf_filename = pdf_file.get()
     try:
         df = pd.read_excel(file_path, sheet_name=sheet_name)
@@ -99,7 +99,7 @@ def process_file(root, file_path, sheet_name):
     for file in os.listdir(bar_dir):
         if file.lower().endswith(".png"):  # Check for PNG extension
             #print(os.path.join(bar_dir, file))
-            canvas_update.create_filled_pdf(bar_dir, file)
+            canvas_update.create_filled_pdf(bar_dir, file, with_bg)
 
     print(f"Barcodes generated and placed successfully at {bar_dir}!")
     messagebox.showinfo("Success", f"PDFs and Barcodes generated successfully at {bar_dir}")
@@ -128,6 +128,7 @@ def start_gui():
     label = tk.Label(root, text="Choose an option:")
     label.pack(padx=10, pady=5)
     selected_heading = tk.StringVar()
+    checkbox_var = tk.IntVar()
     headings = heading.split(',')
     pdf_headings = pdf_heading.split(',')
     #pdf_filename = pdf_headings[0]
@@ -146,7 +147,10 @@ def start_gui():
     browse_button = tk.Button(root, text="Browse", command=lambda: browse_file(file_path, file_label))
     browse_button.pack(padx=10, pady=5)
     sheet_entry = create_input_field(root)
-    submit_button = tk.Button(root, text="Submit", command=lambda: submit_file(root, file_path, sheet_entry)) 
+    # Create a Checkbox
+    checkbox = tk.Checkbutton(root, text="Include background", variable=checkbox_var)  #, command=on_checkbox_toggle)
+    checkbox.pack(pady=10)
+    submit_button = tk.Button(root, text="Submit", command=lambda: submit_file(root, file_path, sheet_entry, checkbox_var.get())) 
     submit_button.pack(padx=10, pady=10)
 
     root.mainloop()
