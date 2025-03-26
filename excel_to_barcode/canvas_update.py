@@ -12,7 +12,7 @@ if getattr(sys, 'frozen', False):  # Running as a PyInstaller .exe
 else:
     base_path = os.path.dirname(__file__)  
 
-def create_vertical_watermark(c, text, watermark_pdf):
+def create_vertical_watermark(c, text): #, watermark_pdf):
     """Create a watermark PDF with vertical text on the right top corner."""
     width, height = A4  # A4 size in points (595x842)
     
@@ -44,14 +44,14 @@ def create_vertical_watermark(c, text, watermark_pdf):
 def add_watermark_to_pdf(c, input_pdf, output_pdf, watermark_text="CONFIDENTIAL"):
     """Add the watermark to an existing PDF."""
     watermark_pdf = "temp_watermark.pdf"
-    create_vertical_watermark(c, watermark_text, watermark_pdf)
+    create_vertical_watermark(c, watermark_text) #, watermark_pdf)
 
     reader = PdfReader(input_pdf)
     writer = PdfWriter()
-    watermark = PdfReader(watermark_pdf).pages[0]
+    #watermark = PdfReader(watermark_pdf).pages[0]
 
     for page in reader.pages:
-        page.merge_page(watermark)  # Merge the watermark onto each page
+        #page.merge_page(watermark)  # Merge the watermark onto each page
         writer.add_page(page)
 
     with open(output_pdf, "wb") as output_file:
@@ -66,23 +66,27 @@ def draw_barcode(c, pdf_filename, filename):
     image = Image.open(png_file)
     img_width, img_height = image.size 
 
+    number_part = int(filename.split('.')[0])  # Get the number (0)
+    sec_filename = f"{number_part + 1}.png"  # Increment and format
+    png_file2 = Path(pdf_filename) / sec_filename
+
     c.drawImage(png_file, 220, 395, width=150, height=50)
-    c.drawImage(png_file, 220, 5, width=150, height=50)
+    #c.drawImage(png_file, 220, 5, width=150, height=50)
     
-    #print(f"PNG file is {png_file} size {img_width} x {img_height}")
-    #match folder_name:
-    #    case 'SGPT_DN' | 'SPK_DPS':
-    #        #print ("DN DPS")
+    print(f"PNG files are {png_file} {png_file2} size {img_width} x {img_height}")
+    match folder_name:
+        case 'SGPM_DN' | 'SPK_DPS':
+            #print ("DN DPS")
     #        c.drawImage(png_file, 220, 395, width=150, height=50)
-    #        c.drawImage(png_file, 220, 5, width=150, height=50)
-    #    case 'SGPT' | 'SPT':
-    #        #print("SGPT")
+             c.drawImage(png_file2, 220, 5, width=150, height=50)
+        case 'SGPT' | 'SPT':
+            #print("SGPT")
     #        c.drawImage(png_file, 220, 395, width=150, height=50)
-    #        c.drawImage(png_file, 220, 5, width=150, height=50)
+            c.drawImage(png_file, 220, 5, width=150, height=50)
     #c.showPage()
     #c.save()
 
-def create_filled_pdf(input_folder, filename, with_bg): #, field_data):
+def create_filled_pdf(input_folder, filename, copy_type, with_bg): #, field_data):
     print(f"create_filled_pdf INPUT : {input_folder} = {with_bg}")
     folder_name = os.path.basename(input_folder)
     image_path = os.path.join(base_path, "Images", f"{folder_name}.pdf")
@@ -100,7 +104,7 @@ def create_filled_pdf(input_folder, filename, with_bg): #, field_data):
     #print("Draw barcode")
     draw_barcode(c,input_folder, filename) #, field_data)
     # OFFICE COPY , ACCOUNTANT COPY, RECIPIENT COPY
-    add_watermark_to_pdf(c, image_path, output_pdf, "RECIPIENT COPY")
+    add_watermark_to_pdf(c, image_path, output_pdf, copy_type)  #"RECIPIENT COPY")
     #pdf_data.print_QR_code(c)
     c.showPage()
     c.save()
