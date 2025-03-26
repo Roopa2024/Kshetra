@@ -9,6 +9,7 @@ import barcode
 from barcode.writer import ImageWriter
 import openpyxl
 from PIL import Image, ImageFont, ImageDraw
+from natsort import natsorted
 import canvas_update
 global root
 
@@ -23,8 +24,12 @@ font_name = config.get('FontSettings', 'font_name')
 font_size = int(config.get('FontSettings', 'font_size'))
 heading = config['Heading']['heading']
 pdf_heading = config['Heading']['pdf_heading']
+copy_type = config['Heading']['copy_type']
+headings = heading.split(',')
+pdf_headings = pdf_heading.split(',')
+copy_types = copy_type.split(',')
 pdf_file = tk.StringVar()
-
+selection_type = tk.StringVar() 
 try:
     font = ImageFont.truetype(custom_font_path, 20)
 except OSError:
@@ -94,12 +99,20 @@ def process_file(root, file_path, sheet_name, with_bg):
         barcode_obj.save(file_name, options=options) 
         draw_text(file_name_png, text_label)
 
-    #pdf_filename = pdf_file.get()
-    #print(f"Submit for {pdf_filename}")
-    for file in os.listdir(bar_dir):
-        if file.lower().endswith(".png"):  # Check for PNG extension
-            #print(os.path.join(bar_dir, file))
-            canvas_update.create_filled_pdf(bar_dir, file, with_bg)
+    source_pdf = pdf_file.get()
+    print(f"Submit for {source_pdf}")
+    
+    #For SPT and SGPT : use pdf_file.get
+    if source_pdf in ('SGPT.pdf', 'SPT.pdf'):
+        for file in os.listdir(bar_dir):
+            if file.lower().endswith(".png"):  # Check for PNG extension
+                canvas_update.create_filled_pdf(bar_dir, file, selection_type.get(), with_bg)
+    elif source_pdf in ('SGPM_DN.pdf', 'SPK_DPS.pdf'):
+        png_files = natsorted([file for file in os.listdir(bar_dir) if file.lower().endswith(".png")])
+        for index, file in enumerate(png_files): #sorted(os.listdir(bar_dir))):  # Ensure sorted order
+            if file.lower().endswith(".png") and index % 2 == 0:  # Process alternate files
+                print(f"PNG calls for index {index} and file {file}")
+                canvas_update.create_filled_pdf(bar_dir, file, selection_type.get(), with_bg)
 
     print(f"Barcodes generated and placed successfully at {bar_dir}!")
     messagebox.showinfo("Success", f"PDFs and Barcodes generated successfully at {bar_dir}")
@@ -117,9 +130,16 @@ def create_input_field(root):
     input_field.pack(padx=10, pady=5)
     return input_field
 
-def on_selection(event, selected_heading, pdf_headings):
+def on_selection(event, pdf_copy):
     index = event.widget.current()
-    pdf_file.set(pdf_headings[index])
+    print("on_selection", pdf_copy)
+    if pdf_copy == 0:
+        pdf_file.set(pdf_headings[index])
+        print("PDF is ", pdf_file.get())
+    elif pdf_copy == 1:
+        selection_type.set(copy_types[index])
+        print("Copy type is ", selection_type.get())
+    
     #print(f"cval index = {index} and pdf is {pdf_headings[index]}")
     #print("Dropdown 1 Selected:", selected_heading.get())
 
@@ -129,17 +149,23 @@ def start_gui():
     label.pack(padx=10, pady=5)
     selected_heading = tk.StringVar()
     checkbox_var = tk.IntVar()
-    headings = heading.split(',')
-    pdf_headings = pdf_heading.split(',')
     #pdf_filename = pdf_headings[0]
     pdf_file.set(pdf_headings[0])
+    selection_type.set(copy_types[0])
 
     # Create First Combobox
     dropdown1 = ttk.Combobox(root, values=headings, textvariable=selected_heading, width=40)
     dropdown1.pack(pady=10)
     dropdown1.current(0)
     dropdown1.tk.eval(f"{dropdown1} configure -justify center")
-    dropdown1.bind("<<ComboboxSelected>>", lambda event: on_selection(event, selected_heading, pdf_headings))
+    dropdown1.bind("<<ComboboxSelected>>", lambda event: on_selection(event, 0))
+
+    # Create First Combobox
+    dropdown2 = ttk.Combobox(root, values=copy_types, textvariable=selection_type, width=40)
+    dropdown2.pack(pady=10)
+    dropdown2.current(0)
+    dropdown2.tk.eval(f"{dropdown1} configure -justify center")
+    dropdown2.bind("<<ComboboxSelected>>", lambda event: on_selection(event, 1))
 
     file_path = tk.StringVar()
     file_label = tk.Label(root, text="Select a file:")
@@ -156,4 +182,3 @@ def start_gui():
     root.mainloop()
 
 start_gui()
-
