@@ -155,13 +155,6 @@ def generate_barcode(data, temp_path="temp_barcode"):
     return temp_path
 
 def generate_qr_code(row_data, qr_path="temp_qr.png"):
-    """
-    Generates a QR Code containing row data (except Barcode) and saves it as an image.
-    
-    :param row_data: Dictionary of row values (excluding Barcode)
-    :param qr_path: File path to save the QR code
-    :return: Path of the saved QR code image
-    """
     # Create a copy of row_data to prevent modifying the original dictionary
     qr_data = {key: value for key, value in row_data.items() if key != "Barcode" and value}
 
@@ -172,17 +165,16 @@ def generate_qr_code(row_data, qr_path="temp_qr.png"):
 
     # Generate QR Code with error correction and force UTF-8 encoding
     qr = qrcode.QRCode(
-        version=5,  # Controls the size of the QR Code (1 is the smallest)
+        version=6,  # Controls the size of the QR Code (1 is the smallest)
         error_correction=qrcode.constants.ERROR_CORRECT_L,  # Allows for small errors in reading
         box_size=10,  # Size of each box in the QR Code
-        border=4,  # Border around the QR Code
+        border=2,  # Border around the QR Code
     )
     qr.add_data(qr_content)
     qr.make(fit=True)
 
     # Create an image from the QR Code
     img = qr.make_image(fill="black", back_color="white")
-
     # Save QR Code
     img.save(qr_path)
 
