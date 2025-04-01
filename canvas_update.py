@@ -1,16 +1,63 @@
 from PyPDF2 import PdfReader, PdfWriter
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
+#from reportlab.lib.colors import black
 import io, os, sys
 from pathlib import Path
 from PIL import Image  
-import pdf_data
 
 # Get the base path (different for script vs. executable)
 if getattr(sys, 'frozen', False):  # Running as a PyInstaller .exe
     base_path = sys._MEIPASS  
 else:
     base_path = os.path.dirname(__file__)  
+
+def create_vertical_watermark(c, text): #, watermark_pdf):
+    """Create a watermark PDF with vertical text on the right top corner."""
+    width, height = A4  # A4 size in points (595x842)
+    
+    #c = canvas.Canvas(watermark_pdf, pagesize=A4)
+    c.setFont("Helvetica", 8)  # Set font and size
+    c.setFillColorRGB(0.5, 0.5, 0.5)  # Darker gray
+    text_width = c.stringWidth(text, "Helvetica", 8) 
+
+    c.saveState()
+    c.translate(width - 15, (height - 220) - text_width)  # Move to top half center
+    #c.translate(width - 15, (height - 235) - text_width)    # Office copy dims
+    c.rotate(90)  # Rotate vertically
+    c.drawString(0, 0, text)  # Draw the text
+    c.restoreState()
+
+    # Position 2: Center of the bottom half
+    c.saveState()
+    c.translate(width - 15, (height - 610) - text_width)  # Move to bottom half center
+    #c.translate(width - 15, (height - 620) - text_width)    # Office copy dims
+    c.rotate(90)  # Rotate vertically
+    c.drawString(0, 0, text)  # Draw the text
+    c.restoreState()
+
+    #c.translate(width - 110, height - 75)   # Position at the right-top corner
+    #c.drawString(0, 0, text)  # Draw the watermark text
+
+    #c.save()
+
+def add_watermark_to_pdf(c, input_pdf, output_pdf, watermark_text="CONFIDENTIAL"):
+    """Add the watermark to an existing PDF."""
+    watermark_pdf = "temp_watermark.pdf"
+    create_vertical_watermark(c, watermark_text) #, watermark_pdf)
+
+    reader = PdfReader(input_pdf)
+    writer = PdfWriter()
+    #watermark = PdfReader(watermark_pdf).pages[0]
+
+    for page in reader.pages:
+        #page.merge_page(watermark)  # Merge the watermark onto each page
+        writer.add_page(page)
+
+    with open(output_pdf, "wb") as output_file:
+        writer.write(output_file)
+
+    print(f"Watermarked PDF saved as {output_pdf}")
 
 def draw_barcode(c, pdf_filename, filename):
     #print(f"Barcode updated at {pdf_filename}")
@@ -19,20 +66,27 @@ def draw_barcode(c, pdf_filename, filename):
     image = Image.open(png_file)
     img_width, img_height = image.size 
 
-    #print(f"PNG file is {png_file} size {img_width} x {img_height}")
+    number_part = int(filename.split('.')[0])  # Get the number (0)
+    sec_filename = f"{number_part + 1}.png"  # Increment and format
+    png_file2 = Path(pdf_filename) / sec_filename
+
+    c.drawImage(png_file, 220, 395, width=150, height=50)
+    #c.drawImage(png_file, 220, 5, width=150, height=50)
+    
+    print(f"PNG files are {png_file} {png_file2} size {img_width} x {img_height}")
     match folder_name:
-        case 'SGPT_DN' | 'SPK_DNS':
-            #print ("DN DNS")
-            c.drawImage(png_file, 220, 422, width=150, height=50)
-            c.drawImage(png_file, 220, 2, width=150, height=50)
+        case 'SGPM_DN' | 'SPK_DPS':
+            #print ("DN DPS")
+    #        c.drawImage(png_file, 220, 395, width=150, height=50)
+             c.drawImage(png_file2, 220, 5, width=150, height=50)
         case 'SGPT' | 'SPT':
             #print("SGPT")
-            c.drawImage(png_file, 220, 424, width=150, height=50)
-            c.drawImage(png_file, 220, 4, width=150, height=50)
-    c.showPage()
-    c.save()
+    #        c.drawImage(png_file, 220, 395, width=150, height=50)
+            c.drawImage(png_file, 220, 5, width=150, height=50)
+    #c.showPage()
+    #c.save()
 
-def create_filled_pdf(input_folder, filename, with_bg): #, field_data):
+def create_filled_pdf(input_folder, filename, copy_type, with_bg): #, field_data):
     print(f"create_filled_pdf INPUT : {input_folder} = {with_bg}")
     folder_name = os.path.basename(input_folder)
     image_path = os.path.join(base_path, "Images", f"{folder_name}.pdf")
@@ -49,7 +103,11 @@ def create_filled_pdf(input_folder, filename, with_bg): #, field_data):
 
     #print("Draw barcode")
     draw_barcode(c,input_folder, filename) #, field_data)
+    # OFFICE COPY , ACCOUNTANT COPY, RECIPIENT COPY
+    add_watermark_to_pdf(c, image_path, output_pdf, copy_type)  #"RECIPIENT COPY")
     #pdf_data.print_QR_code(c)
+    c.showPage()
+    c.save()
 
     packet.seek(0)
     if packet.getbuffer().nbytes > 0:
