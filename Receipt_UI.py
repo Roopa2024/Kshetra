@@ -68,7 +68,7 @@ pdf_file.set(pdf_headings[0])
 # Create input fields dynamically
 fields = [
     ("Select an option:", tk.OptionMenu, {"options": headings}),
-    ("Select Date:", DateEntry, {}),
+    ("Receipt Date:", DateEntry, {}),
     ("Contributor Name:", tk.Entry, {"textvariable": tk.StringVar()}),
     ("Address:", tk.Text, {"height": 3}),
     ("PAN:", tk.Entry, {"textvariable": tk.StringVar()}),
@@ -125,7 +125,7 @@ for i, (label, widget, field_options) in enumerate(fields):
 tk.Label(main_frame, text="Select Payment Method:", font=font_settings).grid(row=len(fields), column=0, sticky="w", pady=5)
 cash = tk.Radiobutton(main_frame, text="Cash", variable=selection_var, value="Cash", font=font_settings, command=lambda: toggle_cheque_fields())
 cheque = tk.Radiobutton(main_frame, text="Cheque", variable=selection_var, value="Cheque", font=font_settings, command=lambda: toggle_cheque_fields())
-online = tk.Radiobutton(main_frame, text="Online", variable=selection_var, value="Online", font=font_settings, command=lambda: toggle_cheque_fields())
+online = tk.Radiobutton(main_frame, text="EFT", variable=selection_var, value="EFT", font=font_settings, command=lambda: toggle_cheque_fields())
 cash.grid(row=len(fields), column=1, sticky="w")
 cheque.grid(row=len(fields) + 1, column=1, sticky="w")
 online.grid(row=len(fields) + 2, column=1, sticky="w")
@@ -191,22 +191,22 @@ for i, (label, widget, options) in enumerate(online_fields):
 # Toggle Cheque Fields
 def toggle_cheque_fields():
     cheque_frame.grid() if selection_var.get() == "Cheque" else cheque_frame.grid_remove()
-    online_frame.grid() if selection_var.get() == "Online" else online_frame.grid_remove()
+    online_frame.grid() if selection_var.get() == "EFT" else online_frame.grid_remove()
 
 # Submit Function
 def submit():   
     details = {}
     for label, var in input_vars.items():
-        if isinstance(var, tk.StringVar):  # Dropdown (OptionMenu) and Entry (StringVar)
+        if isinstance(var, tk.StringVar):                       # Dropdown (OptionMenu) and Entry (StringVar)
             details[label] = var.get()
-        elif isinstance(var, tk.Entry):  # Normal Entry widget
+        elif isinstance(var, tk.Entry):                         # Normal Entry widget
             details[label] = var.get()
-        elif isinstance(var, tk.Text):  # Multiline Text widget
-            details[label] = var.get("1.0", "end-1c").strip()  # Remove extra newlines
+        elif isinstance(var, tk.Text):                          # Multiline Text widget
+            details[label] = var.get("1.0", "end-1c").strip()   # Remove extra newlines
         elif isinstance(var, tk.OptionMenu):
             details[label] = var1.get()
         else:
-            details[label] = ""  # Handle unexpected types safely
+            details[label] = ""                                 # Handle unexpected types safely
     print("Details:", details)
     
     print(f"Pay mode1 = {selection_var.get()}")
@@ -222,16 +222,12 @@ def submit():
         cheque_no = cheque_details.get('Cheque No.:')
         IFSC = cheque_details.get('IFSC Code:')
         ac_no =  cheque_details.get('Account No.:')
-        bank_date = ''
-        utrn = ''
-    elif selection_var.get() in ("Cash", "Online"):
+        bank_date, utrn = '', ''
+    elif selection_var.get() in ("Cash", "EFT"):
         print(f"Pay mode = {selection_var.get()}")
         payment_mode = selection_var.get()
-        cheque_date = ''
-        cheque_no = ''
-        IFSC = ''
-        ac_no = ''
-        if payment_mode == "Online":
+        cheque_date, cheque_no, IFSC, ac_no = '', '', '', ''
+        if payment_mode == "EFT":
             online_details = {
                 label: var.get() if isinstance(var, tk.StringVar) 
                 else var.get("1.0", "end-1c") if isinstance(var, tk.Text)
@@ -240,17 +236,15 @@ def submit():
             bank_date = online_details.get('Bank Date:')
             utrn = online_details.get('UTRN:')
         elif payment_mode == 'Cash':
-            bank_date = ''
-            utrn = ''
+            bank_date, utrn = '', ''
     
     index = selected_index.get()
     id, globe_id, bar_text = excel_data.increment_counter(1, entity_xcls[index])
     #globe_id = excel_data.increment_counter(2)
     
     print(f" id = {id} and globeid = {globe_id}")
-    #Adding barcode to excel
     barcode_path = excel_data.generate_barcode(str(globe_id))   #barcode is temporarily saved in the current dir
-    excel_data.draw_text(f"{barcode_path}.png", bar_text) #f"ID: {globe_id}") #adding TextColumn to the barcode
+    excel_data.draw_text(f"{barcode_path}.png", bar_text)       #adding TextColumn to the barcode
     print("Barcode inserted into Excel successfully!")
 
     print("Data to Save in Excel", id)
@@ -259,7 +253,7 @@ def submit():
         'GlobeId' : '',
         'TextColumn' : '',
         'QR Code' : '',
-        'Receipt Date' : details.get("Select Date:"),
+        'Receipt Date' : details.get("Receipt Date:"),
         'Contributor Name' : details.get("Contributor Name:"),
         'Address' : details.get("Address:"),
         'PAN' : details.get("PAN:"),
@@ -280,16 +274,11 @@ def submit():
     index = selected_index.get()
     excel_data.save_to_excel(entity_xcls[index], id, **kwargs)
 
-    # Generate QR Code
     qr_code_path = excel_data.generate_qr_code(kwargs)
-    # Update kwargs with QR Code path
-    kwargs["QR Code"] = qr_code_path
-    print (f"QR Code path {qr_code_path}")
-
+    kwargs["QR Code"] = qr_code_path                        # Update kwargs with QR Code path
     pdf_path = f"pdfs/{kwargs['Id.']}.pdf"
     os.makedirs("pdfs", exist_ok=True)
-    # Generate PDF directly from kwargs
-    selected_entity = var1.get() #input_vars["Select an option:"]
+    selected_entity = var1.get()                            # Generate PDF directly from kwargs
     print(f"Entity is {selected_entity}")
     index = selected_index.get()
     pdf_data.create_pdf_from_kwargs(kwargs, pdf_path, entity[index], checkbox_var.get())
@@ -298,7 +287,6 @@ def submit():
         df = pd.read_excel(entity_xcls[index], xcl_sheet)
         workbook = openpyxl.load_workbook(entity_xcls[index])
         sheet = workbook.active
-        #file_names = df.iloc[:, 0]
         pdf_dir = pdf_data.get_pdf_directory()
         os.makedirs(pdf_dir, exist_ok=True)
     except ValueError as e:
@@ -307,23 +295,17 @@ def submit():
     except Exception as e:
         print(e)
 
-    # Loop through each row in the DataFrame and create a separate PDF
-    rows_data = []  
+    rows_data = []                                          # Loop through each row in the DataFrame and create a separate PDF
 
     for index, row in df.iterrows():
-        #row_dict = {df.columns[i]: row[i] for i in range(len(df.columns))}  # Create a dictionary with col name as key and row value as value
         row_dict = {df.columns[i]: row.iloc[i] for i in range(len(df.columns))}
-        #rows_data.append(row_dict)
         rows_data.insert(id, row_dict) 
         pdf_name = f"pdfs/{index}.pdf"
-
-        #pdf_data.create_pdf_for_row(df, row, row_dict, pdf_name, entity[0])
-            #pdf_data.generate_pdf(pdf_file_name)
     idx = selected_index.get()
     workbook.save(entity_xcls[idx])
-# Submit Button
-submit_button = tk.Button(root, text="Print", font=font_settings, command=submit)
+
+submit_button = tk.Button(root, text="Print", font=font_settings, command=submit)   # Submit Button
 submit_button.grid(row=1, column=0, columnspan=2, pady=20)
 
-toggle_cheque_fields()  # Ensure correct visibility
+toggle_cheque_fields()                                                              # Ensure correct visibility
 root.mainloop()
