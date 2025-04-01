@@ -62,30 +62,6 @@ def wrap_text(c, text, x, y, width, font_name, font_size):
     _, text_height = paragraph.wrap(width, 550)  # Get actual text height
     paragraph.drawOn(c, x, y - text_height)     
 
-def create_vertical_watermark(c, top_text, bottom_text): #, watermark_pdf):
-    """Create a watermark PDF with vertical text on the right top corner."""
-    width, height = A4  # A4 size in points (595x842)
-    
-    #c = canvas.Canvas(watermark_pdf, pagesize=A4)
-    c.setFont("Helvetica", 8)  # Set font and size
-    c.setFillColorRGB(0.5, 0.5, 0.5)  # Darker gray
-    text_width = c.stringWidth(top_text, "Helvetica", 8) 
-
-    c.saveState()
-    c.translate(width - 15, (height - 220) - text_width)  # Move to top half center
-    #c.translate(width - 15, (height - 235) - text_width)    # Office copy dims
-    c.rotate(90)  # Rotate vertically
-    c.drawString(0, 0, top_text)  # Draw the text
-    c.restoreState()
-
-    # Position 2: Center of the bottom half
-    c.saveState()
-    c.translate(width - 15, (height - 610) - text_width)  # Move to bottom half center
-    #c.translate(width - 15, (height - 620) - text_width)    # Office copy dims
-    c.rotate(90)  # Rotate vertically
-    c.drawString(0, 0, bottom_text)  # Draw the text
-    c.restoreState()
-
 def merge_pdf(entity, new_pdf, pdf_name):
     base_path = get_base_path()
 
