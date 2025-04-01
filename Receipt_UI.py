@@ -60,14 +60,10 @@ main_frame.grid(row=0, column=0, padx=20, pady=20)
 # Payment Selection
 selection_var = tk.StringVar(value="Cash")
 selected_index = tk.IntVar(value=0)
+checkbox_var = tk.IntVar(value=0)
 selected_heading = tk.StringVar()
 pdf_file = tk.StringVar()
 pdf_file.set(pdf_headings[0])
-
-#label1 = tk.Label(root, text="Select an option:")
-#label1.grid(row=0, column=0, padx=5, pady=5)
-#dropdown1 = tk.OptionMenu(root, tk.StringVar(), *headings)
-#dropdown1.grid(row=1, column=0, padx=5, pady=10) 
 
 # Create input fields dynamically
 fields = [
@@ -78,8 +74,6 @@ fields = [
     ("PAN:", tk.Entry, {"textvariable": tk.StringVar()}),
     ("Contribution Type:", tk.Entry, {"textvariable": tk.StringVar()}),
     ("Contribution Intent:", tk.Entry, {"textvariable": tk.StringVar()}),
-    #("Bank Date:", DateEntry, {}),
-    #("UTRN:", tk.Entry, {"textvariable": tk.StringVar()}),
     ("Amount:", tk.Entry, {"validate": "key", "validatecommand": (validate_number, "%S")}),
     ("Bank name:", tk.Entry, {"validate": "key", "validatecommand": (validate_alpha, "%S")}),
     ("Branch:", tk.Entry, {"validate": "key", "validatecommand": (validate_alpha, "%S")}),
@@ -135,6 +129,11 @@ online = tk.Radiobutton(main_frame, text="Online", variable=selection_var, value
 cash.grid(row=len(fields), column=1, sticky="w")
 cheque.grid(row=len(fields) + 1, column=1, sticky="w")
 online.grid(row=len(fields) + 2, column=1, sticky="w")
+
+checkbox = tk.Checkbutton(main_frame, text="Include background", variable=checkbox_var)  #, command=on_checkbox_toggle)
+checkbox.grid(row=len(fields) + 3, column=0, sticky="w")
+
+print(f" Checkbox = {checkbox} var = {checkbox_var.get()}")
 
 # Cheque Frame (Right)
 cheque_frame = tk.Frame(root, borderwidth=2, relief="groove")
@@ -293,7 +292,7 @@ def submit():
     selected_entity = var1.get() #input_vars["Select an option:"]
     print(f"Entity is {selected_entity}")
     index = selected_index.get()
-    pdf_data.create_pdf_from_kwargs(kwargs, pdf_path, entity[index])
+    pdf_data.create_pdf_from_kwargs(kwargs, pdf_path, entity[index], checkbox_var.get())
 
     try:
         df = pd.read_excel(entity_xcls[index], xcl_sheet)
