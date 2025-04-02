@@ -18,6 +18,7 @@ width = config.getint('FontSettings', 'width')
 xcl_file = config.get('Filenames', 'xcl_file')
 xcl_sheet = config.get('Filenames', 'xcl_sheet')
 entity_xcl = config.get('Filenames', 'input_files')
+mapping = config.get('Filenames', 'mapping_sheet')
 entity_xcls = entity_xcl.split(',')
 heading = config['Heading']['heading']
 headings = heading.split(',')
@@ -36,6 +37,27 @@ def limit_text_chars(event, text_widget, limit=120):
     if len(current_text) > limit:
         text_widget.delete("1.0", "end")  # Clear text
         text_widget.insert("1.0", current_text[:limit])
+
+# Function to get dropdown values from the Excel sheet
+def get_dropdown_values(file_path, sheet_name, column_name):
+    workbook = openpyxl.load_workbook(file_path, data_only=True)  # Load Excel
+    sheet = workbook[sheet_name]  # Select sheet
+
+     # Find column index by header name
+    headers = [cell.value for cell in sheet[1]]  # Read header row (1st row)
+    if column_name not in headers:
+        print(f"Error: Column '{column_name}' not found in sheet '{sheet_name}'")
+        return []
+    
+    col_index = headers.index(column_name) + 1  # Convert to 1-based index
+
+    # Extract values from the column (starting from row 2)
+    values = [
+        sheet.cell(row=i, column=col_index).value
+        for i in range(2, sheet.max_row + 1)
+        if sheet.cell(row=i, column=col_index).value is not None
+    ]
+    return values
 
 def on_selection(event, selected_heading, pdf_headings):
     index = event.widget.current()
@@ -65,6 +87,14 @@ selected_heading = tk.StringVar()
 pdf_file = tk.StringVar()
 pdf_file.set(pdf_headings[0])
 
+contribution_types = get_dropdown_values(entity_xcls[0], mapping, "Contribution Type")  # Load from "ContributionType" sheet
+contribution_intents = get_dropdown_values(entity_xcls[0], mapping, "Contribution Intent")  # Load from "ContributionIntent" sheet
+
+# Define variables to store selected values
+contribution_type_var = tk.StringVar(value=contribution_types[0] if contribution_types else "")
+contribution_intent_var = tk.StringVar(value=contribution_intents[0] if contribution_intents else "")
+print(f"Contribution Type : {contribution_type_var.get()}")
+
 # Create input fields dynamically
 fields = [
     ("Select an option:", tk.OptionMenu, {"options": headings}),
@@ -72,8 +102,8 @@ fields = [
     ("Contributor Name:", tk.Entry, {"textvariable": tk.StringVar()}),
     ("Address:", tk.Text, {"height": 3}),
     ("PAN:", tk.Entry, {"textvariable": tk.StringVar()}),
-    ("Contribution Type:", tk.Entry, {"textvariable": tk.StringVar()}),
-    ("Contribution Intent:", tk.Entry, {"textvariable": tk.StringVar()}),
+    ("Contribution Type:", ttk.Combobox, {"values": contribution_types, "textvariable": contribution_type_var}),
+    ("Contribution Intent:", ttk.Combobox, {"values": contribution_intents, "textvariable": contribution_intent_var}),
     ("Amount:", tk.Entry, {"validate": "key", "validatecommand": (validate_number, "%S")}),
     ("Bank name:", tk.Entry, {"validate": "key", "validatecommand": (validate_alpha, "%S")}),
     ("Branch:", tk.Entry, {"validate": "key", "validatecommand": (validate_alpha, "%S")}),
@@ -95,7 +125,7 @@ def on_var1_change(var, label, field_options_ref):
 
 for i, (label, widget, field_options) in enumerate(fields):
     tk.Label(main_frame, text=label, font=font_settings).grid(row=i, column=0, sticky="w", pady=5)
-    
+    print(label)
     var = field_options.get("textvariable", None)
     if var:  # Apply character limits
         limit=10 if "PAN:" in label else 27 if "UTRN:" in label else 60
@@ -122,7 +152,7 @@ for i, (label, widget, field_options) in enumerate(fields):
     input_vars[label] = entry  # Store reference
 
 # Payment Mode Selection
-tk.Label(main_frame, text="Select Payment Method:", font=font_settings).grid(row=len(fields), column=0, sticky="w", pady=5)
+tk.Label(main_frame, text="Select Payment Mode:", font=font_settings).grid(row=len(fields), column=0, sticky="w", pady=5)
 cash = tk.Radiobutton(main_frame, text="Cash", variable=selection_var, value="Cash", font=font_settings, command=lambda: toggle_cheque_fields())
 cheque = tk.Radiobutton(main_frame, text="Cheque", variable=selection_var, value="Cheque", font=font_settings, command=lambda: toggle_cheque_fields())
 online = tk.Radiobutton(main_frame, text="EFT", variable=selection_var, value="EFT", font=font_settings, command=lambda: toggle_cheque_fields())
@@ -284,9 +314,9 @@ def submit():
     pdf_data.create_pdf_from_kwargs(kwargs, pdf_path, entity[index], checkbox_var.get())
 
     try:
-        df = pd.read_excel(entity_xcls[index], xcl_sheet)
+        df = pd.read_excel(entity_xcls[index], sheet_name=xcl_sheet)
         workbook = openpyxl.load_workbook(entity_xcls[index])
-        sheet = workbook.active
+        sheet = workbook[xcl_sheet] 
         pdf_dir = pdf_data.get_pdf_directory()
         os.makedirs(pdf_dir, exist_ok=True)
     except ValueError as e:
