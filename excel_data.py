@@ -30,19 +30,18 @@ except OSError:
     font = ImageFont.load_default()
     
 def increment_counter(col_number, xcl_path):
-    #xcl_path = os.path.join("Images", xcl_path)
     if not os.path.exists(xcl_path):
         print(f"⚠️ File '{xcl_path}' not found. Creating a new one...{col_number}")
-        wb = Workbook()  # Create a new workbook
-        wb.active.append(["Counter"])  # Add a header row (optional)
-        wb.save(xcl_path)  # Save new workbook
+        wb = Workbook()                                             # Create a new workbook
+        wb.active.append(["Counter"])                               # Add a header row (optional)
+        wb.save(xcl_path)                                           # Save new workbook
         print("✅ New file created successfully!")
 
     print(f"increment_counter is col # = {xcl_path}")
-    df = pd.read_excel(xcl_path, sheet_name="Sheet1") 
-    wb = load_workbook(xcl_path)   # Load the workbook and select the sheet
-    sheet = wb.active               # Or use wb['SheetName'] if you have a specific sheet
-    last_row = sheet.max_row        # Get the last row number
+    df = pd.read_excel(xcl_path, sheet_name=xcl_sheet) 
+    wb = load_workbook(xcl_path)                                    # Load the workbook and select the sheet
+    sheet = wb[xcl_sheet] #wb.active                                # Or use wb['SheetName'] if you have a specific sheet
+    last_row = sheet.max_row                                        # Get the last row number
     last_value = sheet.cell(row=last_row, column=col_number).value  # Adjust column index as needed
     last_value1 = df["Id."].dropna().iloc[-1] 
     print(f"Value is {last_value1}")
@@ -54,11 +53,9 @@ def increment_counter(col_number, xcl_path):
         if match:
             prefix = remaining_text = last_value[:-4]    # Extract the prefix and the number part
             num_part = last_value[-4:] 
-        
             # Increment the numeric part and pad it to 4 digits (e.g., 0002)
             num_part = str(int(num_part) + 1).zfill(len(num_part))  # Use zfill to maintain leading zeros
-        
-            new_value = prefix + num_part # Reassemble the string with the incremented value
+            new_value = prefix + num_part                           # Reassemble the string with the incremented value
         else:
             print("Invalid format")
             return None    
@@ -80,9 +77,8 @@ from openpyxl import load_workbook
 from openpyxl.drawing.image import Image
 
 def save_to_excel(file_path, id, **kwargs):
-    # Load the existing Excel file or create a new one
     try:
-        wb = load_workbook(file_path)
+        wb = load_workbook(file_path)                                   # Load the existing Excel file or create a new one
         ws = wb.active
     except FileNotFoundError:
         from openpyxl import Workbook
@@ -91,11 +87,8 @@ def save_to_excel(file_path, id, **kwargs):
         # Create headers if file doesn't exist
         ws.append(list(kwargs.keys()))  
 
-    # Determine the next available row
-    next_row = id + 1 #ws.max_row + 1  
-
-    # Generate QR Code before inserting data
-    qr_code_path = generate_qr_code(kwargs)
+    next_row = id + 1 #ws.max_row + 1                                   # Determine the next available row
+    qr_code_path = generate_qr_code(kwargs)                             # Generate QR Code before inserting data
 
     # Insert data into the correct columns
     print(list(kwargs.items())) 
@@ -123,7 +116,7 @@ def save_to_excel(file_path, id, **kwargs):
     messagebox.showinfo("Success", "Data saved successfully to Excel!")
 
 def draw_text(barcode_path, text_label):
-    barcode_image = PILImage.open(barcode_path)                # Open the barcode image and get dimensions
+    barcode_image = PILImage.open(barcode_path)             # Open the barcode image and get dimensions
     img_width, img_height = barcode_image.size
     new_height = img_height + 40                            # Create a new image with extra space ABOVE the barcode
     new_image = PILImage.new("RGB", (img_width, new_height), "white")
@@ -141,15 +134,11 @@ def generate_barcode(data, temp_path="temp_barcode"):
     data = str(data) 
     barcode_class = barcode.get_barcode_class("code128")
     barcode_obj = barcode_class(data, writer=ImageWriter())
-    options = {                                         # Define barcode settings
+    options = {                                             # Define barcode settings
             "module_height": 7,                             # ⬅ Reduce barcode height (default: ~50)
             "font_size": 10,                                # Adjust text size below barcode
             "font_path": custom_font_path                   #"C:/Users/RoopaHegde/Downloads/RobotoMono-Regular.ttf",
         }
-    #img_bytes = BytesIO()
-    #barcode_obj.write(img_bytes, options)  # Save barcode to memory
-    #img_bytes.seek(0)  # Reset file pointer
-    #return img_bytes
 
     barcode_obj.save(temp_path, options)
     return temp_path
@@ -158,24 +147,21 @@ def generate_qr_code(row_data, qr_path="temp_qr.png"):
     # Create a copy of row_data to prevent modifying the original dictionary
     qr_data = {key: value for key, value in row_data.items() if key != "Barcode" and value}
 
-    # Convert row data to a readable string
-    qr_content = ";".join([f"{key} = {value}" for key, value in qr_data.items()]) #row_data.items() if value])
+    # Convert row data to a readable string (":" and "-" are not readble by QR Code)
+    qr_content = ";".join([f"{key.replace(':', ' ')} = {str(value).replace(':', ' ')}" for key, value in qr_data.items()])
     print("QR Code Content:\n", qr_content)
     
-
     # Generate QR Code with error correction and force UTF-8 encoding
     qr = qrcode.QRCode(
-        version=6,  # Controls the size of the QR Code (1 is the smallest)
+        version=6,                                          # Controls the size of the QR Code (1 is the smallest)
         error_correction=qrcode.constants.ERROR_CORRECT_L,  # Allows for small errors in reading
-        box_size=10,  # Size of each box in the QR Code
-        border=2,  # Border around the QR Code
+        box_size=10,                                        # Size of each box in the QR Code
+        border=2,                                           # Border around the QR Code
     )
     qr.add_data(qr_content)
     qr.make(fit=True)
 
-    # Create an image from the QR Code
-    img = qr.make_image(fill="black", back_color="white")
-    # Save QR Code
-    img.save(qr_path)
+    img = qr.make_image(fill="black", back_color="white")   # Create an image from the QR Code
+    img.save(qr_path)                                       # Save QR Code
 
     return qr_path
