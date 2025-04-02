@@ -1,6 +1,7 @@
 import os, configparser, io, qrcode, sys
 import pandas as pd
-import openpyxl
+#import openpyxl
+import shutil
 
 import canvas_update, excel_data
 import tkinter.messagebox as messagebox
@@ -43,20 +44,48 @@ def get_base_path():
 
 def merge_pdf(entity, new_pdf, pdf_name):
     base_path = get_base_path()
-
     image_path = os.path.join(base_path, "Images", entity)
     existing_pdf = PdfReader(image_path) #f"Images/{folder_name}.pdf")
-    print(f"Merge with {existing_pdf}")
+    print(f"Merge with {image_path}")
     writer = PdfWriter()
     for page in existing_pdf.pages:
-    # Merge the new PDF with the old PDF (the original form)
-        if len(new_pdf.pages) == 0:
+        if len(new_pdf.pages) == 0:                             # Merge the new PDF with the old PDF (the original form)
             print("Error: The PDF has no pages!")
         else:
             page.merge_page(new_pdf.pages[0])
         writer.add_page(page)
-    with open(pdf_name, "wb") as f: #output_file:      # Save the final filled PDF
-        writer.write(f) #output_file)
+
+    pdf_dir = os.path.dirname(pdf_name)  # Extract the folder path
+    os.makedirs(pdf_dir, exist_ok=True)
+    with open(pdf_name, "wb") as f:                             # Save the final filled PDF
+        writer.write(f) 
+
+def duplicate_pdf(original_pdf, copy_pdf):
+    reader = PdfReader(original_pdf)
+    writer = PdfWriter()
+    
+    for page in reader.pages:
+        writer.add_page(page)
+    
+    with open(copy_pdf, "wb") as f:
+        writer.write(f)
+
+def generate_duplicates(pdf_path, entity):
+    #duplicate_pdf_path = str(pdf_path).replace(".pdf", f"_{entity}")
+    pdf_name = os.path.basename(pdf_path)
+    entity_name = os.path.splitext(entity)[0]
+    duplicate_pdf_path = os.path.join("Office_copy", entity_name, pdf_name)
+    duplicate_pdf_path_acct = os.path.join("Accountant_copy", entity_name, pdf_name)
+    #duplicate_pdf_path = os.path.join("Office_copy", str(pdf_path).replace(".pdf", f"_{entity}.pdf"))
+    #duplicate_pdf_path_acct = os.path.join("Accountant_copy", str(pdf_path).replace(".pdf", f"_{entity}.pdf"))
+
+    pdf_dir = os.path.dirname(duplicate_pdf_path)  # Extract the folder path
+    os.makedirs(pdf_dir, exist_ok=True)
+    pdf_dir_acct = os.path.dirname(duplicate_pdf_path_acct)  # Extract the folder path
+    os.makedirs(pdf_dir_acct, exist_ok=True)
+    #duplicate_pdf(pdf_path, duplicate_pdf_path)
+    shutil.copy(pdf_path, duplicate_pdf_path)
+    shutil.copy(pdf_path, duplicate_pdf_path_acct)
 
 def create_pdf_from_kwargs(kwargs, pdf_path, entity, with_bg):
     packet = io.BytesIO()
@@ -70,7 +99,7 @@ def create_pdf_from_kwargs(kwargs, pdf_path, entity, with_bg):
     # Draw data (excluding images)
     c.setFont(font_name, font_size)     
     for key, value in kwargs.items():
-        if key not in ["Barcode", "QR Code"] and value:  # Exclude image fields
+        if key not in ["Barcode", "QR Code"] and value:         # Exclude image fields
             match key:
                 case 'Receipt Date':
                     canvas_update.draw_receipt_date(c, value, receipt)
@@ -132,7 +161,7 @@ def create_pdf_from_kwargs(kwargs, pdf_path, entity, with_bg):
         except Exception as e:
             print("Error adding Barcode:", e)
    
-    canvas_update.create_vertical_watermark(c, copy_types[1], copy_types[2]) #, watermark_pdf)
+    canvas_update.create_vertical_watermark(c, copy_types[1], copy_types[2])
 
     # Save PDF
     c.showPage()
@@ -152,6 +181,18 @@ def create_pdf_from_kwargs(kwargs, pdf_path, entity, with_bg):
                 writer.add_page(page)
             with open(str(pdf_path), "wb") as f:                     # Save the final filled PDF
                 writer.write(f)
+            
+            pdf_name = os.path.basename(pdf_path)
+            entity_name = os.path.splitext(entity)[0]
+            duplicate_pdf_path = os.path.join("Office_copy", entity_name, pdf_name)
+            duplicate_pdf_path_acct = os.path.join("Accountant_copy", entity_name, pdf_name)
+            merge_pdf(entity, new_pdf, duplicate_pdf_path)
+            merge_pdf(entity, new_pdf, duplicate_pdf_path_acct)
+            #duplicate_pdf_path = str(pdf_path).replace(".pdf", f"_{entity}")
+            #merge_pdf(entity, new_pdf, f"Office_copy/{duplicate_pdf_path}")
+            #merge_pdf(entity, new_pdf, f"Accountant_copy/{duplicate_pdf_path}")
+
         elif with_bg == 1:
             merge_pdf(entity, new_pdf, pdf_path)
+            generate_duplicates(pdf_path, entity)
     print(f"PDF saved: {pdf_path}")
