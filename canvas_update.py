@@ -180,7 +180,7 @@ def create_vertical_watermark(c, top_text, bottom_text): #, watermark_pdf):
     """Create a watermark PDF with vertical text on the right top corner."""
     width, height = A4  # A4 size in points (595x842)
     
-    c.setFont("Helvetica", 8)  # Set font and size
+    c.setFont(font_name, 8)  # Set font and size
     c.setFillColorRGB(0.5, 0.5, 0.5)  # Darker gray
     text_width = c.stringWidth(top_text, font_name, 8) 
 
