@@ -70,19 +70,19 @@ def draw_barcode(c, pdf_filename, filename):
     sec_filename = f"{number_part + 1}.png"  # Increment and format
     png_file2 = Path(pdf_filename) / sec_filename
 
-    c.drawImage(png_file, 220, 395, width=150, height=50)
-    #c.drawImage(png_file, 220, 5, width=150, height=50)
+    #c.drawImage(png_file, 220, 395, width=150, height=50)
+    c.drawImage(png_file, 220, 5, width=150, height=50)
     
     print(f"PNG files are {png_file} {png_file2} size {img_width} x {img_height}")
     match folder_name:
         case 'SGPM_DN' | 'SPK_DPS':
             #print ("DN DPS")
     #        c.drawImage(png_file, 220, 395, width=150, height=50)
-             c.drawImage(png_file2, 220, 5, width=150, height=50)
+             c.drawImage(png_file2, 220, 395, width=150, height=50)
         case 'SGPT' | 'SPT':
             #print("SGPT")
     #        c.drawImage(png_file, 220, 395, width=150, height=50)
-            c.drawImage(png_file, 220, 5, width=150, height=50)
+            c.drawImage(png_file, 220, 395, width=150, height=50)
     #c.showPage()
     #c.save()
 
