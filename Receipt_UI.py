@@ -8,6 +8,10 @@ import pandas as pd
 import openpyxl
 from openpyxl import load_workbook, Workbook
 from openpyxl.drawing.image import Image
+import datetime
+import getpass
+import sys
+import shutil
 
 # Load configurations
 config_path = os.path.join(os.path.dirname(__file__), "config", "receipt.ini")
@@ -25,6 +29,30 @@ headings = heading.split(',')
 pdf_heading = config['Heading']['pdf_heading']
 pdf_headings = pdf_heading.split(',')
 entity = pdf_heading.split(',')
+copy_type = config['Heading']['copy_type']
+copy_types = copy_type.split(',')
+global var1
+
+allowed_user = config['Access']['user']
+allowed_users = allowed_user.split(',')
+current_user = getpass.getuser()
+
+print (f"User is {current_user}")
+
+#if current_user not in allowed_users:
+#    print(f"Access denied for user: {current_user}")
+#    messagebox.showinfo(f"Error:", f"Access denied for user: {current_user}")
+#    sys.exit(1)
+
+def resource_path(relative_path):
+    """ Get absolute path to resource, works for dev and for PyInstaller """
+    try:
+        # PyInstaller creates a temp folder and stores path in _MEIPASS
+        base_path = sys._MEIPASS
+    except AttributeError:
+        base_path = os.path.abspath(".")
+
+    return os.path.join(base_path, relative_path)
 
 # Function to limit input length
 def limit_chars(var, limit):
@@ -68,7 +96,8 @@ def selection_changed(*args):
 
 # Tkinter Window
 root = tk.Tk()
-root.title("Receipt Input")
+root.configure(bg="white")
+root.title("Receipt App")
 root.geometry(f"{root.winfo_screenwidth()}x{root.winfo_screenheight()}")
 
 # Validation functions
@@ -81,89 +110,147 @@ main_frame.grid(row=0, column=0, padx=20, pady=20)
 
 # Payment Selection
 selection_var = tk.StringVar(value="Cash")
-selected_index = tk.IntVar(value=0)
+selection_entity = tk.StringVar(value='SGPM_DN')
+selected_indx = 0 #tk.IntVar(value=0)
 checkbox_var = tk.IntVar(value=0)
 selected_heading = tk.StringVar()
 pdf_file = tk.StringVar()
 pdf_file.set(pdf_headings[0])
 
-contribution_types = get_dropdown_values(entity_xcls[0], mapping, "Contribution Type")  # Load from "ContributionType" sheet
-contribution_intents = get_dropdown_values(entity_xcls[0], mapping, "Contribution Intent")  # Load from "ContributionIntent" sheet
+excel_path = resource_path(entity_xcls[0])
+file_name = os.path.basename(excel_path)
+dest_excel_path = f"excel/{file_name}"
+if not os.path.exists(dest_excel_path):
+    os.makedirs(os.path.dirname(dest_excel_path), exist_ok=True)
+    shutil.copy(excel_path, dest_excel_path)
+    print(f"Copied {excel_path} to {dest_excel_path}")
+else:
+    print(f"Excel File already exists.")
+    
+contribution_types = get_dropdown_values(dest_excel_path, mapping, "Contribution Type")  # Load from "ContributionType" sheet
+contribution_intents = get_dropdown_values(dest_excel_path, mapping, "Contribution Intent")  # Load from "ContributionIntent" sheet
 
 # Define variables to store selected values
 contribution_type_var = tk.StringVar(value=contribution_types[0] if contribution_types else "")
 contribution_intent_var = tk.StringVar(value=contribution_intents[0] if contribution_intents else "")
-print(f"Contribution Type : {contribution_type_var.get()}")
 
-# Create input fields dynamically
-fields = [
-    ("Select an option:", tk.OptionMenu, {"options": headings}),
+# Creating Frames to group fields with borders
+group1_frame = tk.Frame(root, borderwidth=2, relief="groove", bg="#99ccff") 
+group1_frame.grid(row=0, column=0, padx=20, pady=20, sticky="nsew") 
+
+group2_frame = tk.Frame(root, borderwidth=2, relief="groove", bg="#99ccff") 
+group2_frame.grid(row=1, column=0, padx=20, pady=20, sticky="nsew") 
+
+group3_frame = tk.Frame(root, borderwidth=2, relief="groove", bg="#99ccff")
+group3_frame.grid(row=2, column=0, padx=20, pady=20, sticky="nsew") 
+
+group4_frame = tk.Frame(root, borderwidth=2, relief="groove", bg="#99ccff")
+group4_frame.grid(row=3, column=0, padx=20, pady=20, sticky="nsew") 
+
+group5_frame = tk.Frame(root, borderwidth=2, relief="groove", bg="#99ccff")
+group5_frame.grid(row=0, column=3, padx=20, pady=20, sticky="nsew") 
+
+
+# Grouped Fields (you can adjust as needed)
+fields_group_1 = [
     ("Receipt Date:", DateEntry, {}),
     ("Contributor Name:", tk.Entry, {"textvariable": tk.StringVar()}),
     ("Address:", tk.Text, {"height": 3}),
     ("PAN:", tk.Entry, {"textvariable": tk.StringVar()}),
-    ("Contribution Type:", ttk.Combobox, {"values": contribution_types, "textvariable": contribution_type_var}),
-    ("Contribution Intent:", ttk.Combobox, {"values": contribution_intents, "textvariable": contribution_intent_var}),
-    ("Amount:", tk.Entry, {"validate": "key", "validatecommand": (validate_number, "%S")}),
-    ("Bank name:", tk.Entry, {"validate": "key", "validatecommand": (validate_alpha, "%S")}),
-    ("Branch:", tk.Entry, {"validate": "key", "validatecommand": (validate_alpha, "%S")}),
 ]
 
+fields_group_2 = [
+    ("Contribution Type:", ttk.Combobox, {"values": contribution_types, "textvariable": contribution_type_var}),
+    ("Contribution Intent:", ttk.Combobox, {"values": contribution_intents, "textvariable": contribution_intent_var}),
+]
+
+fields_group_3 = [
+    ("Bank name:", tk.Entry, {"validate": "key", "validatecommand": (validate_alpha, "%S")}),
+    ("Branch:", tk.Entry, {"validate": "key", "validatecommand": (validate_alpha, "%S")}),
+    ("Amount:", tk.Entry, {"validate": "key", "validatecommand": (validate_number, "%S")}),
+]
+
+fields_group_4 = []
+fields_group_5 = []
+
+# Entity Selection
+selection_entity.set(headings[0]) 
+tk.Label(group5_frame, text="Select the Entity:", font=font_settings, bg="#99ccff", relief="groove").grid(row=0, column=3, sticky="w", pady=5)
+for idx, option in enumerate(headings):
+    radiobutton = tk.Radiobutton(group5_frame, text=option, variable=selection_entity, value=option, font=font_settings, bg="#99ccff") #, command=lambda idx=idx: set_entity(idx))
+    radiobutton.grid(row=idx + 1, column=3, sticky="w")
+
+
 input_vars = {}  # Store variables for later access
+# Function to add widgets dynamically to each group
+def add_widgets_to_group(frame, fields):
+    for i, (label, widget, field_options) in enumerate(fields):
+        tk.Label(frame, text=label, font=font_settings, bg="#99ccff").grid(row=i, column=0, sticky="w", pady=5)
+        
+        # Get the variable, if any, from field_options
+        var = field_options.get("textvariable", None)
+        
+        # Check if a variable exists for the field (e.g., StringVar for entry fields)
+        if var:
+            limit = 10 if "PAN:" in label else 27 if "UTRN:" in label else 60
+            var.trace_add("write", lambda *args, v=var, l=limit: limit_chars(v, l))
+            input_vars[label] = var
 
-def on_var1_change(var, label, field_options_ref):
-    selected_value = var.get()
-    options_list = field_options_ref["options"]
+        # Handle OptionMenu separately, since it requires both 'variable' and 'value' parameters
+        if widget == tk.OptionMenu:
+            var = field_options.get("variable")  # Ensure the 'variable' is passed
+            options = field_options.get("options")  # Ensure the options are passed
+            if var is not None and options is not None:
+                entry = widget(frame, var, *options)
+            else:
+                raise ValueError(f"OptionMenu requires both 'variable' and 'options' in field_options. Missing for '{label}'")
+        elif label == 'Receipt Date:':
+            entry = widget(frame, font=font_settings, width=5, **field_options)
+        else:
+            entry = widget(frame, font=font_settings, width=width, **field_options)
+
+        # Add the widget to the grid
+        entry.grid(row=i, column=1, pady=5, sticky="ew")
+        input_vars[label] = entry
+
+# Function to add widgets dynamically to each group
+def add_widgets_to_group1(frame, fields):
+    for i, (label, widget, field_options) in enumerate(fields):
+        tk.Label(frame, text=label, font=font_settings).grid(row=i, column=0, sticky="w", pady=5)
+        print(label)
+        var = field_options.get("textvariable", None)
+        if var:  # Apply character limits
+            limit=10 if "PAN:" in label else 27 if "UTRN:" in label else 60
+            var.trace_add("write", lambda *args, v=var, l=limit: limit_chars(v, l))
+            input_vars[label] = var 
     
-    # Get the index of the selected value
-    try:
-        selected_index.set(options_list.index(selected_value))
-    except ValueError:
-        selected_index.set(-1)  # In case the value is not found
+        if widget == tk.Text:  # Special handling for Text widgets
+            entry = widget(frame, font=font_settings, width=width, height=3)  
+            entry.bind("<KeyRelease>", lambda event, e=entry, l=120: limit_text_chars(event, e, l))  # Bind character limit
+        else:
+            entry = widget(frame, font=font_settings, width=width, **field_options)
 
-    print(f"Option changed to: {selected_value} (Index: {selected_index.get()}) and {field_options_ref}")
-
-for i, (label, widget, field_options) in enumerate(fields):
-    tk.Label(main_frame, text=label, font=font_settings).grid(row=i, column=0, sticky="w", pady=5)
-    print(label)
-    var = field_options.get("textvariable", None)
-    if var:  # Apply character limits
-        limit=10 if "PAN:" in label else 27 if "UTRN:" in label else 60
-        var.trace_add("write", lambda *args, v=var, l=limit: limit_chars(v, l))
-        input_vars[label] = var 
-    
-    if widget == tk.Text:  # Special handling for Text widgets
-        entry = widget(main_frame, font=font_settings, width=width, height=3)  
-        entry.bind("<KeyRelease>", lambda event, e=entry, l=120: limit_text_chars(event, e, l))  # Bind character limit
-    #elif widget == tk.OptionMenu:
-    elif label == "Select an option:":
-        var1 = tk.StringVar()                   # ✅ Create a StringVar to track selection
-        var1.set(field_options["options"][0])         # ✅ Set default option
-        print("Options Dictionary:", label, field_options)
-
-        var1.trace_add("write", lambda *args, v=var1, f_opts=field_options: on_var1_change(v, label, f_opts))
-        entry = tk.OptionMenu(main_frame, var1, *field_options["options"])  # Create dropdown
-        input_vars[label] = var1  # ✅ Store the StringVar, NOT the widget
         entry.grid(row=i, column=1, pady=5)
-    else:
-        entry = widget(main_frame, font=font_settings, width=width, **field_options)
+        input_vars[label] = entry  # Store reference
 
-    entry.grid(row=i, column=1, pady=5)
-    input_vars[label] = entry  # Store reference
+# Add widgets to the frames for each group of fields
+add_widgets_to_group(group1_frame, fields_group_1)
+add_widgets_to_group(group2_frame, fields_group_2)
+add_widgets_to_group(group3_frame, fields_group_3)
+add_widgets_to_group(group4_frame, fields_group_4)
+add_widgets_to_group(group5_frame, fields_group_5)
 
 # Payment Mode Selection
-tk.Label(main_frame, text="Select Payment Mode:", font=font_settings).grid(row=len(fields), column=0, sticky="w", pady=5)
-cash = tk.Radiobutton(main_frame, text="Cash", variable=selection_var, value="Cash", font=font_settings, command=lambda: toggle_cheque_fields())
-cheque = tk.Radiobutton(main_frame, text="Cheque", variable=selection_var, value="Cheque", font=font_settings, command=lambda: toggle_cheque_fields())
-online = tk.Radiobutton(main_frame, text="EFT", variable=selection_var, value="EFT", font=font_settings, command=lambda: toggle_cheque_fields())
-cash.grid(row=len(fields), column=1, sticky="w")
-cheque.grid(row=len(fields) + 1, column=1, sticky="w")
-online.grid(row=len(fields) + 2, column=1, sticky="w")
+tk.Label(group4_frame, text="Select Payment Mode:", font=font_settings, bg="#99ccff").grid(row=3, column=0, sticky="w", pady=5)
+cash = tk.Radiobutton(group4_frame, text="Cash", bg="#99ccff", variable=selection_var, value="Cash", font=font_settings, command=lambda: toggle_cheque_fields())
+cheque = tk.Radiobutton(group4_frame, text="Cheque", bg="#99ccff", variable=selection_var, value="Cheque", font=font_settings, command=lambda: toggle_cheque_fields())
+online = tk.Radiobutton(group4_frame, text="EFT", bg="#99ccff", variable=selection_var, value="EFT", font=font_settings, command=lambda: toggle_cheque_fields())
+cash.grid(row=3, column=1, sticky="w")
+cheque.grid(row=3, column=2, sticky="w")
+online.grid(row=3, column=3, sticky="w")
 
-checkbox = tk.Checkbutton(main_frame, text="Include background", variable=checkbox_var)  #, command=on_checkbox_toggle)
-checkbox.grid(row=len(fields) + 3, column=0, sticky="w")
-
-print(f" Checkbox = {checkbox} var = {checkbox_var.get()}")
+checkbox = tk.Checkbutton(group4_frame, text="Include background", bg="#99ccff", variable=checkbox_var)
+checkbox.grid(row=6, column=0, sticky="w")
 
 # Cheque Frame (Right)
 cheque_frame = tk.Frame(root, borderwidth=2, relief="groove")
@@ -199,7 +286,7 @@ for i, (label, widget, options) in enumerate(cheque_fields):
         var.trace_add("write", lambda *args, v=var, l=limit: limit_chars(v, l))
         cheque_vars[label] = var  # Store for later
     
-    entry = widget(cheque_frame, font=font_settings, width=30, **options)
+    entry = widget(cheque_frame, font=font_settings, width=13, **options)
     entry.grid(row=i + 1, column=1, padx=5, pady=5)
     cheque_vars[label] = entry  # Store reference
 
@@ -214,39 +301,36 @@ for i, (label, widget, options) in enumerate(online_fields):
         var.trace_add("write", lambda *args, v=var, l=limit: limit_chars(v, l))
         online_vars[label] = var  # Store for later
     
-    entry = widget(online_frame, font=font_settings, width=30, **options)
+    entry = widget(online_frame, font=font_settings, width=28, **options)
     entry.grid(row=i + 1, column=1, padx=5, pady=5)
     online_vars[label] = entry  # Store reference
-
-# Toggle Cheque Fields
-def toggle_cheque_fields():
-    cheque_frame.grid() if selection_var.get() == "Cheque" else cheque_frame.grid_remove()
-    online_frame.grid() if selection_var.get() == "EFT" else online_frame.grid_remove()
 
 # Submit Function
 def submit():   
     details = {}
+    selected_value = selection_entity.get()  # Get the value of the selected radiobutton
+    if selected_value in headings:
+        selected_indx = headings.index(selected_value)  # Get the index of the selected value
+    else:
+        print("No option selected.")
+
     for label, var in input_vars.items():
-        if isinstance(var, tk.StringVar):                       # Dropdown (OptionMenu) and Entry (StringVar)
+        if isinstance(var, tk.StringVar):                       
             details[label] = var.get()
         elif isinstance(var, tk.Entry):                         # Normal Entry widget
             details[label] = var.get()
         elif isinstance(var, tk.Text):                          # Multiline Text widget
             details[label] = var.get("1.0", "end-1c").strip()   # Remove extra newlines
-        elif isinstance(var, tk.OptionMenu):
-            details[label] = var1.get()
         else:
             details[label] = ""                                 # Handle unexpected types safely
-    print("Details:", details)
+    #print("Details:", details)
     
-    print(f"Pay mode1 = {selection_var.get()}")
     if selection_var.get() == "Cheque":
         cheque_details = {
             label: var.get() if isinstance(var, tk.StringVar) 
             else var.get("1.0", "end-1c") if isinstance(var, tk.Text)
             else var.get()
             for label, var in cheque_vars.items()}
-        print("Cheque Details:", cheque_details)
         payment_mode = 'Cheque'
         cheque_date = cheque_details.get('Cheque Date:')
         cheque_no = cheque_details.get('Cheque No.:')
@@ -254,7 +338,6 @@ def submit():
         ac_no =  cheque_details.get('Account No.:')
         bank_date, utrn = '', ''
     elif selection_var.get() in ("Cash", "EFT"):
-        print(f"Pay mode = {selection_var.get()}")
         payment_mode = selection_var.get()
         cheque_date, cheque_no, IFSC, ac_no = '', '', '', ''
         if payment_mode == "EFT":
@@ -268,54 +351,65 @@ def submit():
         elif payment_mode == 'Cash':
             bank_date, utrn = '', ''
     
-    index = selected_index.get()
-    id, globe_id, bar_text = excel_data.increment_counter(1, entity_xcls[index])
-    #globe_id = excel_data.increment_counter(2)
+    #index = selected_index.get()
+    print(f"Index is {selected_indx}")
+    entity_path = resource_path(entity_xcls[selected_indx])
+    file_name = os.path.basename(entity_path)
+    dest_excel_path = f"excel/{file_name}"
+    if not os.path.exists(dest_excel_path):
+        os.makedirs(os.path.dirname(dest_excel_path), exist_ok=True)
+        shutil.copy(excel_path, dest_excel_path)
+        print(f"Copied {excel_path} to {dest_excel_path}")
+    else:
+        print(f"File {dest_excel_path} already exists.")
+    id, globe_id, bar_text = excel_data.increment_counter(1, dest_excel_path)
     
-    print(f" id = {id} and globeid = {globe_id}")
+    date = datetime.datetime.now()
+    formatted_date = date.strftime("%m/%d/%Y %H.%M.%S")
+
     barcode_path = excel_data.generate_barcode(str(globe_id))   #barcode is temporarily saved in the current dir
     excel_data.draw_text(f"{barcode_path}.png", bar_text)       #adding TextColumn to the barcode
-    print("Barcode inserted into Excel successfully!")
 
-    print("Data to Save in Excel", id)
+    #the col header and order here should be an exact match with the excel.
     kwargs = {
         'Id.' : id,
-        'GlobeId' : '',
-        'TextColumn' : '',
-        'QR Code' : '',
+        'Receipt No.' : '', 
         'Receipt Date' : details.get("Receipt Date:"),
+        'Amount' : details.get("Amount:"),
         'Contributor Name' : details.get("Contributor Name:"),
-        'Address' : details.get("Address:"),
-        'PAN' : details.get("PAN:"),
-        'Contribution Type' : details.get("Contribution Type:"),
-        'Contribution Intent' : details.get("Contribution Intent:"),
-        'Payment Mode' : payment_mode,
+        'Contributor Type' : details.get("Contribution Type:"),
+        'Contributor Intent' : details.get("Contribution Intent:"),
+        'Bank Date' : bank_date,
+        'UTR No.' : utrn,
         'Cheque Date' : cheque_date,
         'Cheque No.' : cheque_no,
-        'IFSC Code' : IFSC,
-        'A/C No.' : ac_no,
-        'Bank Date' : bank_date,
-        'UTRN' : utrn,
-        'Amount' : details.get("Amount:"),
+        'IFSC' : IFSC,
+        'Account No.' : ac_no,
+        'Address' : details.get("Address:"),
+        'PAN' : details.get("PAN:"),
+        'Payment Mode' : payment_mode,
         'Barcode' : f"{barcode_path}.png",
         'Bank Name' : details.get("Bank name:"),
         'Branch Name' : details.get("Branch:"),
+        'Print Date' : formatted_date,
+        'Globe Id.' : '',
+        'TextColumn' : '',
+        'QR Code' : '',
     }
-    index = selected_index.get()
-    excel_data.save_to_excel(entity_xcls[index], id, **kwargs)
+
+    excel_data.save_to_excel(dest_excel_path, id, **kwargs)
 
     qr_code_path = excel_data.generate_qr_code(kwargs)
-    kwargs["QR Code"] = qr_code_path                        # Update kwargs with QR Code path
-    pdf_path = f"pdfs/{kwargs['Id.']}.pdf"
-    os.makedirs("pdfs", exist_ok=True)
-    selected_entity = var1.get()                            # Generate PDF directly from kwargs
-    print(f"Entity is {selected_entity}")
-    index = selected_index.get()
-    pdf_data.create_pdf_from_kwargs(kwargs, pdf_path, entity[index], checkbox_var.get())
+    kwargs["QR Code"] = qr_code_path       
+    entity_name = os.path.splitext(entity[selected_indx])[0]                 # Update kwargs with QR Code path
+    pdf_path = f"pdfs/{entity_name}/{kwargs['Id.']}.pdf"
+    os.makedirs(f"pdfs/{entity_name}", exist_ok=True)
+    pdf_data.create_pdf_from_kwargs(kwargs, pdf_path, entity[selected_indx], checkbox_var.get(), copy_types[1], copy_types[2])
+    pdf_data.create_pdf_from_kwargs(kwargs, pdf_path, entity[selected_indx], checkbox_var.get(), copy_types[0], copy_types[0])
 
     try:
-        df = pd.read_excel(entity_xcls[index], sheet_name=xcl_sheet)
-        workbook = openpyxl.load_workbook(entity_xcls[index])
+        df = pd.read_excel(dest_excel_path, sheet_name=xcl_sheet)
+        workbook = openpyxl.load_workbook(dest_excel_path)
         sheet = workbook[xcl_sheet] 
         pdf_dir = pdf_data.get_pdf_directory()
         os.makedirs(pdf_dir, exist_ok=True)
@@ -331,11 +425,15 @@ def submit():
         row_dict = {df.columns[i]: row.iloc[i] for i in range(len(df.columns))}
         rows_data.insert(id, row_dict) 
         pdf_name = f"pdfs/{index}.pdf"
-    idx = selected_index.get()
-    workbook.save(entity_xcls[idx])
+    workbook.save(dest_excel_path)
 
-submit_button = tk.Button(root, text="Print", font=font_settings, command=submit)   # Submit Button
-submit_button.grid(row=1, column=0, columnspan=2, pady=20)
+submit_button = tk.Button(group4_frame, text="Print", font=font_settings, command=submit)   # Submit Button
+submit_button.grid(row=6, column=1, columnspan=2, pady=20)
+
+# Toggle Cheque Fields
+def toggle_cheque_fields():
+    cheque_frame.grid() if selection_var.get() == "Cheque" else cheque_frame.grid_remove()
+    online_frame.grid() if selection_var.get() == "EFT" else online_frame.grid_remove()
 
 toggle_cheque_fields()                                                              # Ensure correct visibility
 root.mainloop()
