@@ -46,7 +46,7 @@ def merge_pdf(entity, new_pdf, pdf_name):
     base_path = get_base_path()
     image_path = os.path.join(base_path, "Images", entity)
     existing_pdf = PdfReader(image_path) #f"Images/{folder_name}.pdf")
-    print(f"Merge with {image_path}")
+    #print(f"Merge with {image_path}")
     writer = PdfWriter()
     for page in existing_pdf.pages:
         if len(new_pdf.pages) == 0:                             # Merge the new PDF with the old PDF (the original form)
@@ -59,6 +59,7 @@ def merge_pdf(entity, new_pdf, pdf_name):
     os.makedirs(pdf_dir, exist_ok=True)
     with open(pdf_name, "wb") as f:                             # Save the final filled PDF
         writer.write(f) 
+    #os.startfile(pdf_name)
 
 def duplicate_pdf(original_pdf, copy_pdf):
     reader = PdfReader(original_pdf)
@@ -71,27 +72,17 @@ def duplicate_pdf(original_pdf, copy_pdf):
         writer.write(f)
 
 def generate_duplicates(pdf_path, entity):
-    #duplicate_pdf_path = str(pdf_path).replace(".pdf", f"_{entity}")
     pdf_name = os.path.basename(pdf_path)
     entity_name = os.path.splitext(entity)[0]
-    duplicate_pdf_path = os.path.join("Office_copy", entity_name, pdf_name)
     duplicate_pdf_path_acct = os.path.join("Accountant_copy", entity_name, pdf_name)
-    #duplicate_pdf_path = os.path.join("Office_copy", str(pdf_path).replace(".pdf", f"_{entity}.pdf"))
-    #duplicate_pdf_path_acct = os.path.join("Accountant_copy", str(pdf_path).replace(".pdf", f"_{entity}.pdf"))
-
-    pdf_dir = os.path.dirname(duplicate_pdf_path)  # Extract the folder path
-    os.makedirs(pdf_dir, exist_ok=True)
     pdf_dir_acct = os.path.dirname(duplicate_pdf_path_acct)  # Extract the folder path
     os.makedirs(pdf_dir_acct, exist_ok=True)
-    #duplicate_pdf(pdf_path, duplicate_pdf_path)
-    shutil.copy(pdf_path, duplicate_pdf_path)
     shutil.copy(pdf_path, duplicate_pdf_path_acct)
 
-def create_pdf_from_kwargs(kwargs, pdf_path, entity, with_bg):
+def create_pdf_from_kwargs(kwargs, pdf_path, entity, with_bg, top_text, bottom_text):
     packet = io.BytesIO()
     c = canvas.Canvas(packet, pagesize=A4)
     width, height = A4
-    print(f"BG and entity = {with_bg} and {entity}")
     height = height - 56
     x_offset = 90                                               # Set starting position for text
     receipt = int(entity in ('SGPM_DN.pdf', 'SPK_DPS.pdf'))
@@ -114,15 +105,15 @@ def create_pdf_from_kwargs(kwargs, pdf_path, entity, with_bg):
                     if receipt: c.drawString(402, height - 148, "    ".join(str(value).upper()))
                     c.drawString(402, height - 538, "    ".join(str(value).upper()))
                     c.setFont(font_name, font_size) 
-                case 'Contribution Type':
+                case 'Contributor Type':
                     if receipt: c.drawString(x_offset + 70 , height - 170, f"{value}")
                     c.drawString(x_offset + 70, height - 560, f"{value}")
-                case 'Contribution Intent':
+                case 'Contributor Intent':
                     if receipt: c.drawString(x_offset + 70, height - 187, f"{value}")
                     c.drawString(x_offset + 70, height - 575, f"{value}")
                 case 'Bank Date':
                     canvas_update.draw_bank_date(c, value, receipt)
-                case 'UTRN':
+                case 'UTR No.':
                     canvas_update.draw_utrn(c, value, receipt)
                 case 'Amount':
                     canvas_update.draw_amount(c, value, receipt)
@@ -132,18 +123,24 @@ def create_pdf_from_kwargs(kwargs, pdf_path, entity, with_bg):
                     canvas_update.draw_cheque_date(c, value, receipt)
                 case 'Cheque No.':
                     canvas_update.draw_cheque_no(c, value, receipt)
-                case 'IFSC Code':
+                case 'IFSC':
                     canvas_update.draw_ifsc(c, value, receipt)
-                case 'A/C No.':
+                case 'Account No.':
                     canvas_update.draw_acct_no(c, value, receipt)
                 case 'Bank Name':  
                     if not receipt: c.drawString(x_offset, height - 215, f"{value}")
                 case 'Branch Name':  
                     if not receipt: c.drawString(x_offset + 180, height - 215, f"{value}")
+                case 'Print Date':
+                    c.setFont(font_name, 8)  # Set font and size
+                    c.setFillColorRGB(0.5, 0.5, 0.5) 
+                    text_width = c.stringWidth(value, font_name, 8)
+                    canvas_update.draw_copy_type(c, (height - 305) - text_width, value)
+                    canvas_update.draw_copy_type(c, 15, value)
+                    #c.drawString(475, 5, f"{value}")
 
     # Insert QR Code
     if kwargs.get("QR Code"):
-        print("QR Code found")
         try:
             qr_image = ImageReader(kwargs["QR Code"])
             if receipt: c.drawImage(qr_image, 480, height - 65, width=60, height=60)
@@ -161,7 +158,7 @@ def create_pdf_from_kwargs(kwargs, pdf_path, entity, with_bg):
         except Exception as e:
             print("Error adding Barcode:", e)
    
-    canvas_update.create_vertical_watermark(c, copy_types[1], copy_types[2])
+    canvas_update.create_vertical_watermark(c, top_text, bottom_text)
 
     # Save PDF
     c.showPage()
@@ -173,26 +170,40 @@ def create_pdf_from_kwargs(kwargs, pdf_path, entity, with_bg):
     else:
         print("The file is empty. Please check the PDF generation process.")
 
-    if not entity == 0:       
-        print(f"Entity is {entity}")
-        if with_bg == 0:
-            writer = PdfWriter()
-            for page in new_pdf.pages:
-                writer.add_page(page)
-            with open(str(pdf_path), "wb") as f:                     # Save the final filled PDF
-                writer.write(f)
-            
-            pdf_name = os.path.basename(pdf_path)
-            entity_name = os.path.splitext(entity)[0]
+    if not entity == 0:     
+        pdf_name = os.path.basename(pdf_path)
+        entity_name = os.path.splitext(entity)[0]  
+        if top_text == bottom_text:
             duplicate_pdf_path = os.path.join("Office_copy", entity_name, pdf_name)
-            duplicate_pdf_path_acct = os.path.join("Accountant_copy", entity_name, pdf_name)
             merge_pdf(entity, new_pdf, duplicate_pdf_path)
-            merge_pdf(entity, new_pdf, duplicate_pdf_path_acct)
-            #duplicate_pdf_path = str(pdf_path).replace(".pdf", f"_{entity}")
-            #merge_pdf(entity, new_pdf, f"Office_copy/{duplicate_pdf_path}")
-            #merge_pdf(entity, new_pdf, f"Accountant_copy/{duplicate_pdf_path}")
+        #print(f"Entity is {entity}")
 
+        if with_bg == 0: 
+            if top_text != bottom_text:                                               #print without bg
+                writer = PdfWriter()
+                for page in new_pdf.pages:
+                    writer.add_page(page)
+                with open(str(pdf_path), "wb") as f:                     # Save the final filled PDF
+                    writer.write(f)
+                absolute_path = os.path.abspath(pdf_path)
+                print(f"Attempting to open: {absolute_path}")
+
+                if os.path.exists(absolute_path):
+                    os.startfile(absolute_path)
+                else:
+                    print("File not found on disk!")
+                duplicate_pdf_path_acct = os.path.join("Accountant_copy", entity_name, pdf_name)
+                merge_pdf(entity, new_pdf, duplicate_pdf_path_acct)
+                #os.startfile(pdf_path)
         elif with_bg == 1:
-            merge_pdf(entity, new_pdf, pdf_path)
-            generate_duplicates(pdf_path, entity)
+            if top_text != bottom_text:
+                merge_pdf(entity, new_pdf, pdf_path)
+                generate_duplicates(pdf_path, entity)
+                absolute_path = os.path.abspath(pdf_path)
+                print(f"Attempting to open: {absolute_path}")
+
+                if os.path.exists(absolute_path):
+                    os.startfile(absolute_path)
+                else:
+                    print("File not found on disk!")
     print(f"PDF saved: {pdf_path}")
