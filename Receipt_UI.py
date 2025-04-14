@@ -2,16 +2,13 @@ import tkinter as tk
 from tkinter import ttk
 from tkinter import messagebox
 from tkcalendar import DateEntry
-import os, configparser
-import excel_data, pdf_data
+import os, configparser, excel_data, pdf_data
 import pandas as pd
 import openpyxl
 from openpyxl import load_workbook, Workbook
 from openpyxl.drawing.image import Image
-import datetime
-import getpass
-import sys
-import shutil
+import datetime, getpass, sys, shutil
+from PIL import Image, ImageTk
 
 # Load configurations
 config_path = os.path.join(os.path.dirname(__file__), "config", "receipt.ini")
@@ -31,8 +28,8 @@ pdf_headings = pdf_heading.split(',')
 entity = pdf_heading.split(',')
 copy_type = config['Heading']['copy_type']
 copy_types = copy_type.split(',')
-global var1
 
+# Configuration to limit Access based on Login 
 allowed_user = config['Access']['user']
 allowed_users = allowed_user.split(',')
 current_user = getpass.getuser()
@@ -44,6 +41,7 @@ print (f"User is {current_user}")
 #    messagebox.showinfo(f"Error:", f"Access denied for user: {current_user}")
 #    sys.exit(1)
 
+# Function to get base path for EXE
 def resource_path(relative_path):
     """ Get absolute path to resource, works for dev and for PyInstaller """
     try:
@@ -54,7 +52,7 @@ def resource_path(relative_path):
 
     return os.path.join(base_path, relative_path)
 
-# Function to limit input length
+# Function to limit input entry length in UI
 def limit_chars(var, limit):
     if len(var.get()) > limit:
         var.set(var.get()[:limit])
@@ -87,13 +85,6 @@ def get_dropdown_values(file_path, sheet_name, column_name):
     ]
     return values
 
-def on_selection(event, selected_heading, pdf_headings):
-    index = event.widget.current()
-    pdf_file.set(pdf_headings[index])
-
-def selection_changed(*args):
-    print(f"Selected option: {var.get()}")
-
 # Tkinter Window
 root = tk.Tk()
 root.configure(bg="white")
@@ -111,7 +102,7 @@ main_frame.grid(row=0, column=0, padx=20, pady=20)
 # Payment Selection
 selection_var = tk.StringVar(value="Cash")
 selection_entity = tk.StringVar(value='SGPM_DN')
-selected_indx = 0 #tk.IntVar(value=0)
+selected_indx = 0 
 checkbox_var = tk.IntVar(value=0)
 selected_heading = tk.StringVar()
 pdf_file = tk.StringVar()
@@ -135,21 +126,13 @@ contribution_type_var = tk.StringVar(value=contribution_types[0] if contribution
 contribution_intent_var = tk.StringVar(value=contribution_intents[0] if contribution_intents else "")
 
 # Creating Frames to group fields with borders
-group1_frame = tk.Frame(root, borderwidth=2, relief="groove", bg="#99ccff") 
-group1_frame.grid(row=0, column=0, padx=20, pady=20, sticky="nsew") 
-
-group2_frame = tk.Frame(root, borderwidth=2, relief="groove", bg="#99ccff") 
-group2_frame.grid(row=1, column=0, padx=20, pady=20, sticky="nsew") 
-
-group3_frame = tk.Frame(root, borderwidth=2, relief="groove", bg="#99ccff")
-group3_frame.grid(row=2, column=0, padx=20, pady=20, sticky="nsew") 
-
-group4_frame = tk.Frame(root, borderwidth=2, relief="groove", bg="#99ccff")
-group4_frame.grid(row=3, column=0, padx=20, pady=20, sticky="nsew") 
-
-group5_frame = tk.Frame(root, borderwidth=2, relief="groove", bg="#99ccff")
-group5_frame.grid(row=0, column=3, padx=20, pady=20, sticky="nsew") 
-
+frame_positions = [(0, 0), (1, 0), (2, 0), (3, 0), (0, 3)]          
+group_frames = {}
+for i, (row, col) in enumerate(frame_positions, start=1):
+    frame_name = f"group{i}_frame"
+    frame = tk.Frame(root, borderwidth=2, relief="groove", bg="#99ccff")
+    frame.grid(row=row, column=col, padx=20, pady=20, sticky="nsew")
+    group_frames[frame_name] = frame
 
 # Grouped Fields (you can adjust as needed)
 fields_group_1 = [
@@ -175,13 +158,13 @@ fields_group_5 = []
 
 # Entity Selection
 selection_entity.set(headings[0]) 
-tk.Label(group5_frame, text="Select the Entity:", font=font_settings, bg="#99ccff", relief="groove").grid(row=0, column=3, sticky="w", pady=5)
+tk.Label(group_frames["group5_frame"], text="Select the Entity:", font=font_settings, bg="#99ccff", relief="groove").grid(row=0, column=3, sticky="w", pady=5)
 for idx, option in enumerate(headings):
-    radiobutton = tk.Radiobutton(group5_frame, text=option, variable=selection_entity, value=option, font=font_settings, bg="#99ccff") #, command=lambda idx=idx: set_entity(idx))
+    radiobutton = tk.Radiobutton(group_frames["group5_frame"], text=option, variable=selection_entity, value=option, font=font_settings, bg="#99ccff") 
     radiobutton.grid(row=idx + 1, column=3, sticky="w")
 
 
-input_vars = {}  # Store variables for later access
+input_vars = {}                                                     # Store variables for later access
 # Function to add widgets dynamically to each group
 def add_widgets_to_group(frame, fields):
     for i, (label, widget, field_options) in enumerate(fields):
@@ -213,43 +196,26 @@ def add_widgets_to_group(frame, fields):
         entry.grid(row=i, column=1, pady=5, sticky="ew")
         input_vars[label] = entry
 
-# Function to add widgets dynamically to each group
-def add_widgets_to_group1(frame, fields):
-    for i, (label, widget, field_options) in enumerate(fields):
-        tk.Label(frame, text=label, font=font_settings).grid(row=i, column=0, sticky="w", pady=5)
-        print(label)
-        var = field_options.get("textvariable", None)
-        if var:  # Apply character limits
-            limit=10 if "PAN:" in label else 27 if "UTRN:" in label else 60
-            var.trace_add("write", lambda *args, v=var, l=limit: limit_chars(v, l))
-            input_vars[label] = var 
-    
-        if widget == tk.Text:  # Special handling for Text widgets
-            entry = widget(frame, font=font_settings, width=width, height=3)  
-            entry.bind("<KeyRelease>", lambda event, e=entry, l=120: limit_text_chars(event, e, l))  # Bind character limit
-        else:
-            entry = widget(frame, font=font_settings, width=width, **field_options)
-
-        entry.grid(row=i, column=1, pady=5)
-        input_vars[label] = entry  # Store reference
-
 # Add widgets to the frames for each group of fields
-add_widgets_to_group(group1_frame, fields_group_1)
-add_widgets_to_group(group2_frame, fields_group_2)
-add_widgets_to_group(group3_frame, fields_group_3)
-add_widgets_to_group(group4_frame, fields_group_4)
-add_widgets_to_group(group5_frame, fields_group_5)
+field_groups = {
+    "group1_frame": fields_group_1, "group2_frame": fields_group_2, "group3_frame": fields_group_3,
+    "group4_frame": fields_group_4, "group5_frame": fields_group_5,
+}
+for group_name, frame in group_frames.items():
+    fields = field_groups.get(group_name)
+    if fields:
+        add_widgets_to_group(frame, fields)
 
 # Payment Mode Selection
-tk.Label(group4_frame, text="Select Payment Mode:", font=font_settings, bg="#99ccff").grid(row=3, column=0, sticky="w", pady=5)
-cash = tk.Radiobutton(group4_frame, text="Cash", bg="#99ccff", variable=selection_var, value="Cash", font=font_settings, command=lambda: toggle_cheque_fields())
-cheque = tk.Radiobutton(group4_frame, text="Cheque", bg="#99ccff", variable=selection_var, value="Cheque", font=font_settings, command=lambda: toggle_cheque_fields())
-online = tk.Radiobutton(group4_frame, text="EFT", bg="#99ccff", variable=selection_var, value="EFT", font=font_settings, command=lambda: toggle_cheque_fields())
+tk.Label(group_frames["group4_frame"], text="Select Payment Mode:", font=font_settings, bg="#99ccff").grid(row=3, column=0, sticky="w", pady=5)
+cash = tk.Radiobutton(group_frames["group4_frame"], text="Cash", bg="#99ccff", variable=selection_var, value="Cash", font=font_settings, command=lambda: toggle_cheque_fields())
+cheque = tk.Radiobutton(group_frames["group4_frame"], text="Cheque", bg="#99ccff", variable=selection_var, value="Cheque", font=font_settings, command=lambda: toggle_cheque_fields())
+online = tk.Radiobutton(group_frames["group4_frame"],  text="EFT", bg="#99ccff", variable=selection_var, value="EFT", font=font_settings, command=lambda: toggle_cheque_fields())
 cash.grid(row=3, column=1, sticky="w")
 cheque.grid(row=3, column=2, sticky="w")
 online.grid(row=3, column=3, sticky="w")
 
-checkbox = tk.Checkbutton(group4_frame, text="Include background", bg="#99ccff", variable=checkbox_var)
+checkbox = tk.Checkbutton(group_frames["group4_frame"], text="Include background", bg="#99ccff", variable=checkbox_var)
 checkbox.grid(row=6, column=0, sticky="w")
 
 # Cheque Frame (Right)
@@ -358,12 +324,14 @@ def submit():
     dest_excel_path = f"excel/{file_name}"
     if not os.path.exists(dest_excel_path):
         os.makedirs(os.path.dirname(dest_excel_path), exist_ok=True)
-        shutil.copy(excel_path, dest_excel_path)
-        print(f"Copied {excel_path} to {dest_excel_path}")
+        shutil.copy(entity_path, dest_excel_path)
+        print(f"Copied new {entity_path} to {dest_excel_path}")
     else:
         print(f"File {dest_excel_path} already exists.")
-    id, globe_id, bar_text = excel_data.increment_counter(1, dest_excel_path)
-    
+    #id = excel_data.increment_counter(1, dest_excel_path)
+    id, globe_id, bar_text = excel_data.increment_counter(dest_excel_path)
+    print (f"Globe ID {globe_id} TextColumn {bar_text}")
+
     date = datetime.datetime.now()
     formatted_date = date.strftime("%m/%d/%Y %H.%M.%S")
 
@@ -373,7 +341,7 @@ def submit():
     #the col header and order here should be an exact match with the excel.
     kwargs = {
         'Id.' : id,
-        'Receipt No.' : '', 
+        'Receipt No.' : globe_id, 
         'Receipt Date' : details.get("Receipt Date:"),
         'Amount' : details.get("Amount:"),
         'Contributor Name' : details.get("Contributor Name:"),
@@ -392,8 +360,8 @@ def submit():
         'Bank Name' : details.get("Bank name:"),
         'Branch Name' : details.get("Branch:"),
         'Print Date' : formatted_date,
-        'Globe Id.' : '',
-        'TextColumn' : '',
+        'Globe Id.' : globe_id,
+        'TextColumn' : bar_text,
         'QR Code' : '',
     }
 
@@ -427,7 +395,7 @@ def submit():
         pdf_name = f"pdfs/{index}.pdf"
     workbook.save(dest_excel_path)
 
-submit_button = tk.Button(group4_frame, text="Print", font=font_settings, command=submit)   # Submit Button
+submit_button = tk.Button(group_frames["group4_frame"], text="Print", font=font_settings, command=submit)   # Submit Button
 submit_button.grid(row=6, column=1, columnspan=2, pady=20)
 
 # Toggle Cheque Fields
