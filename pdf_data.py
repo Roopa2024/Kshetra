@@ -1,8 +1,6 @@
 import os, configparser, io, qrcode, sys
 import pandas as pd
-#import openpyxl
 import shutil
-
 import canvas_update, excel_data
 import tkinter.messagebox as messagebox
 from PyPDF2 import PdfReader, PdfWriter
@@ -21,11 +19,13 @@ pdf_headings = pdf_heading.split(',')
 copy_type = config['Heading']['copy_type']
 copy_types = copy_type.split(',')
 font_name = config.get('FontSettings', 'font_name')
-font_name_bold = config.get('FontSettings', 'font_name_bold')
+copy_font_name = config.get('FontSettings', 'copy_font_name')
+#font_name_bold = config.get('FontSettings', 'font_name_bold')
 font_size = config.getint('FontSettings', 'font_size')
 x_position = config.getint('FontSettings', 'y_position')
 y_position = config.getint('FontSettings', 'y_position')
-
+ 
+# Function to get the pdf directory path for EXE
 def get_pdf_directory():
     if hasattr(sys, '_MEIPASS'):    # Running as a bundled .exe
         temp_dir = sys._MEIPASS     # Temporary folder where files are extracted
@@ -34,6 +34,7 @@ def get_pdf_directory():
         pdf_dir = 'pdfs'            # Default pdfs directory in current working directory
     return pdf_dir
 
+# Function to get base path for EXE
 def get_base_path():
     # Get the base path (different for script vs. executable)
     if getattr(sys, 'frozen', False):  # Running as a PyInstaller .exe
@@ -42,10 +43,11 @@ def get_base_path():
         base_path = os.path.dirname(__file__)  
     return base_path
 
+# Function to create pdf contents
 def merge_pdf(entity, new_pdf, pdf_name):
     base_path = get_base_path()
     image_path = os.path.join(base_path, "Images", entity)
-    existing_pdf = PdfReader(image_path) #f"Images/{folder_name}.pdf")
+    existing_pdf = PdfReader(image_path) 
     #print(f"Merge with {image_path}")
     writer = PdfWriter()
     for page in existing_pdf.pages:
@@ -59,18 +61,8 @@ def merge_pdf(entity, new_pdf, pdf_name):
     os.makedirs(pdf_dir, exist_ok=True)
     with open(pdf_name, "wb") as f:                             # Save the final filled PDF
         writer.write(f) 
-    #os.startfile(pdf_name)
 
-def duplicate_pdf(original_pdf, copy_pdf):
-    reader = PdfReader(original_pdf)
-    writer = PdfWriter()
-    
-    for page in reader.pages:
-        writer.add_page(page)
-    
-    with open(copy_pdf, "wb") as f:
-        writer.write(f)
-
+#Function to generate duplicate pdfs for Accountant and Office copy
 def generate_duplicates(pdf_path, entity):
     pdf_name = os.path.basename(pdf_path)
     entity_name = os.path.splitext(entity)[0]
@@ -79,6 +71,7 @@ def generate_duplicates(pdf_path, entity):
     os.makedirs(pdf_dir_acct, exist_ok=True)
     shutil.copy(pdf_path, duplicate_pdf_path_acct)
 
+# Function to generate pdf content based on the inputs given in the APP UI
 def create_pdf_from_kwargs(kwargs, pdf_path, entity, with_bg, top_text, bottom_text):
     packet = io.BytesIO()
     c = canvas.Canvas(packet, pagesize=A4)
@@ -87,7 +80,6 @@ def create_pdf_from_kwargs(kwargs, pdf_path, entity, with_bg, top_text, bottom_t
     x_offset = 90                                               # Set starting position for text
     receipt = int(entity in ('SGPM_DN.pdf', 'SPK_DPS.pdf'))
 
-    # Draw data (excluding images)
     c.setFont(font_name, font_size)     
     for key, value in kwargs.items():
         if key not in ["Barcode", "QR Code"] and value:         # Exclude image fields
@@ -98,13 +90,13 @@ def create_pdf_from_kwargs(kwargs, pdf_path, entity, with_bg, top_text, bottom_t
                     if receipt: c.drawString(x_offset, height - 105, f"{value}")          
                     c.drawString(x_offset, height - 495, f"{value}")       
                 case 'Address':
-                    if receipt: canvas_update.wrap_text(c, f"{value}", x_offset, height - 115, 455, font_name, font_size)
-                    canvas_update.wrap_text(c, f"{value}", x_offset, height - 505, 455, font_name, font_size)
+                    if receipt: canvas_update.wrap_text(c, f"{value}", x_offset-50, height - 115, 500, font_name, font_size, receipt)
+                    canvas_update.wrap_text(c, f"{value}", x_offset-50, height - 505, 500, font_name, font_size, 1)
                 case 'PAN':
-                    c.setFont(font_name, font_size-1) 
+                    c.setFont(font_name, font_size) 
                     if receipt: c.drawString(402, height - 148, "    ".join(str(value).upper()))
                     c.drawString(402, height - 538, "    ".join(str(value).upper()))
-                    c.setFont(font_name, font_size) 
+                    #c.setFont(font_name, font_size) 
                 case 'Contributor Type':
                     if receipt: c.drawString(x_offset + 70 , height - 170, f"{value}")
                     c.drawString(x_offset + 70, height - 560, f"{value}")
@@ -128,15 +120,17 @@ def create_pdf_from_kwargs(kwargs, pdf_path, entity, with_bg, top_text, bottom_t
                 case 'Account No.':
                     canvas_update.draw_acct_no(c, value, receipt)
                 case 'Bank Name':  
-                    if not receipt: c.drawString(x_offset, height - 215, f"{value}")
+                    c.setFont(font_name, font_size)
+                    if not receipt: c.drawString(x_offset-4, height - 215, f"{value}")
                 case 'Branch Name':  
-                    if not receipt: c.drawString(x_offset + 180, height - 215, f"{value}")
+                    if not receipt: c.drawString(x_offset + 175, height - 215, f"{value}")
                 case 'Print Date':
-                    c.setFont(font_name, 8)  # Set font and size
+                    c.setFont(copy_font_name, 8)  # Set font and size
                     c.setFillColorRGB(0.5, 0.5, 0.5) 
-                    text_width = c.stringWidth(value, font_name, 8)
+                    text_width = c.stringWidth(value, copy_font_name, 8)
                     canvas_update.draw_copy_type(c, (height - 305) - text_width, value)
                     canvas_update.draw_copy_type(c, 15, value)
+                    c.setFont(font_name, font_size)
                     #c.drawString(475, 5, f"{value}")
 
     # Insert QR Code
@@ -195,7 +189,7 @@ def create_pdf_from_kwargs(kwargs, pdf_path, entity, with_bg, top_text, bottom_t
                 duplicate_pdf_path_acct = os.path.join("Accountant_copy", entity_name, pdf_name)
                 merge_pdf(entity, new_pdf, duplicate_pdf_path_acct)
                 #os.startfile(pdf_path)
-        elif with_bg == 1:
+        elif with_bg == 1:                                               # print without background
             if top_text != bottom_text:
                 merge_pdf(entity, new_pdf, pdf_path)
                 generate_duplicates(pdf_path, entity)
