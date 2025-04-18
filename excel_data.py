@@ -17,7 +17,8 @@ config = configparser.ConfigParser()
 config.read(config_path)
 xcl_file = config.get('Filenames', 'xcl_file')
 xcl_sheet = config.get('Filenames', 'xcl_sheet')
-secret_key = config.get('Filenames', 'secret_key')
+secret = config.get('Filenames', 'secret_key')
+secret_key = secret.split(',')
 pdf_heading = config['Heading']['pdf_heading']
 pdf_headings = pdf_heading.split(',')
 entity_xcl = config.get('Filenames', 'input_files')
@@ -32,12 +33,12 @@ def hmac_sha3(key, message):
     key = key.encode()
     message = message.encode()
     hmac_hash = hmac.new(key, message, SHA3_256)
-    print(hmac_hash.hexdigest())
+    #print(hmac_hash.hexdigest())
     first_5 = hmac_hash.hexdigest()[:5]
     return first_5
 
 #Function to increment the serial number in excel
-def increment_counter(xcl_path):
+def increment_counter(index, xcl_path):
     if not os.path.exists(xcl_path):
         print(f"File '{xcl_path}' not found. Creating a new one...")
         wb = Workbook()                                             # Create a new workbook
@@ -47,26 +48,20 @@ def increment_counter(xcl_path):
 
     df = pd.read_excel(xcl_path, sheet_name=xcl_sheet) 
     wb = load_workbook(xcl_path)                                    # Load the workbook and select the sheet
-    #sheet = wb[xcl_sheet] #wb.active                                # Or use wb['SheetName'] if you have a specific sheet
-    #last_row = sheet.max_row     
-    # Get the last row number
-    #last_value = sheet.cell(row=last_row, column=col_number).value  # Adjust column index as needed
     last_id = df["Id."].dropna().iloc[-1] 
     new_id = int(last_id) + 1
 
     last_globeid= df["Globe Id."].dropna().iloc[-1]
-    match = last_globeid[-4:] 
-    print ("Match is", match)
 
     if last_globeid:
-        prefix = remaining_text = last_globeid[:-4]               # Extract the prefix and the number part
+        prefix = last_globeid[:-4]               # Extract the prefix and the number part
         num_part = last_globeid[-4:]                              # Increment the numeric part and pad it to 4 digits (e.g., 0002)
         num_part = str(int(num_part) + 1).zfill(len(num_part))  # Use zfill to maintain leading zeros
         new_globeid = prefix + num_part                           # Reassemble the string with the incremented value
         #print(f"NUM part {num_part} and new value {new_globeid}")
 
         if new_globeid:
-            textcol = hmac_sha3(new_globeid, secret_key) 
+            textcol = hmac_sha3(secret_key[index], new_globeid) 
         return new_id, new_globeid, textcol
     else:
         print("Globe Id. not found")
