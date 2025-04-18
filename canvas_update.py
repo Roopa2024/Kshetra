@@ -17,32 +17,35 @@ config_path = os.path.join(os.path.dirname(__file__), "config", "receipt.ini")
 config = configparser.ConfigParser()
 config.read(config_path)
 font_name = config.get('FontSettings', 'font_name')
-font_name_bold = config.get('FontSettings', 'font_name_bold')
+copy_font_name = config.get('FontSettings', 'copy_font_name')
+#font_name_bold = config.get('FontSettings', 'font_name_bold')
 font_size = config.getint('FontSettings', 'font_size')
 width, height = A4
 height = height - 56
 x_offset = 90
 
-# Get the base path (different for script vs. executable)
-if getattr(sys, 'frozen', False):  # Running as a PyInstaller .exe
-    base_path = sys._MEIPASS  
-else:
-    base_path = os.path.dirname(__file__)  
-
+# Converting date to the desired format
 def get_date_format(c, value):
-    date_obj = datetime.strptime(value, "%m/%d/%y") 
+    date_obj = datetime.strptime(value, "%d/%m/%Y") 
     formatted_date = date_obj.strftime("%d%b%Y").upper()
-    c.setFont(font_name_bold, font_size) 
+    c.setFont(font_name, font_size) 
     return formatted_date
 
-def wrap_text(c, text, x, y, width, font_name, font_size):
+# Function to wrap text
+def wrap_text(c, text, x, y, width, font_name, font_size, receipt):
     styles = getSampleStyleSheet()
     style = styles['Normal']
     style.fontName = font_name
     style.fontSize = font_size
-    style.leading = font_size + 7
-    print (f"WRAP text {text}")
-    if "&nbsp;&nbsp;&nbsp;&nbsp;" not in text:
+    style.leading = font_size + 7                           #vertical spacing between lines
+    
+    # To adjust the max 200 chars in Address 
+    if receipt:
+        style.leftIndent = 0
+        style.firstLineIndent = 40
+        #style.fontSize = font_size-4
+
+    if "&nbsp;&nbsp;&nbsp;&nbsp;" not in text:              #vertical spacing for 'Amount in words' is different
         style.leading = font_size + 3
 
     paragraph = Paragraph(text, style)                      # Create a Paragraph object which wraps the text
@@ -69,49 +72,50 @@ def convert_to_words(amount):
         result = f"{capitalized_number} RUPEES"
     return result
 
+# Function to add tick mark based on the mode of payment
 def receipt_check(c, receipt, x1, y1, x2, y2, text):
     if receipt:
         c.drawString(x1, y1, text)
     else:
         c.drawString(x2, y2, text)
 
-def receipt_check_wrap(c, receipt, x1, y1, x2, y2, text1, text2, limit):
-    if limit == 380:
-        font_size_small = font_size-4
-        wrap_font = font_size_revert = font_size-2
-    else:
-        wrap_font = font_size_small = font_size-1
-        font_size_revert = font_size
-
-    if receipt:
-        if limit == 0:
+#Function to wrap text inside the boxes 
+def receipt_cheque_wrap(c, receipt, x1, y1, x2, y2, text1, text2, limit, font_name, font_size):
+    if receipt:                                             # SGPM_DN and SPK_DPS
+        if limit == 0:                                      #cheque no.
             c.drawString(x1, y1, text1)
         else:
-            wrap_text(c, text1, x1, y1, limit, font_name, wrap_font)
-    else:
-        c.setFont(font_name, font_size_small) 
+            wrap_text(c, text1, x1, y1, limit, font_name, font_size, 0)
+    else:                                                   #SGPT and SPT
+        if limit == 380:
+            font_size -= 2
+        c.setFont(font_name, font_size)
         c.drawString(x2, y2, text2)
-        c.setFont(font_name, font_size_revert) 
+    c.setFont(font_name, font_size)
 
+# Function to draw receipt date inside the boxes
 def draw_receipt_date(c, value, receipt):
     formatted_date = get_date_format(c, value)
-    c.setFont(font_name_bold, font_size-1) 
+    c.setFont(font_name, font_size) 
     x, y = (433, height - 82) if receipt else (420, height - 66)
     c.drawString(x, y, "    ".join(formatted_date) )
     c.drawString(433, height - 470, "    ".join(formatted_date) )
     c.setFont(font_name, font_size) 
 
+# Function to draw bank date inside the boxes
 def draw_bank_date(c, value,receipt):
     formatted_date = get_date_format(c, value)
-    c.setFont(font_name_bold, font_size-1) 
+    c.setFont(font_name, font_size) 
     receipt_check(c, receipt,  422, height - 220, x_offset + 330, height - 170, "    ".join(formatted_date))
     c.drawString(422, height - 608, "    ".join(formatted_date))
     c.setFont(font_name, font_size) 
 
+# Function to draw UTRN
 def draw_utrn(c, value, receipt):
-    receipt_check_wrap(c, receipt, 422, height - 227, x_offset + 75, height - 190, "&nbsp;&nbsp;&nbsp;&nbsp;".join(str(value).upper()),"    ".join(value), 140)
-    wrap_text(c, "&nbsp;&nbsp;&nbsp;&nbsp;".join(str(value).upper()), 422, height - 617, 140, font_name, font_size-1)
+    receipt_cheque_wrap(c, receipt, 422, height - 227, x_offset + 70, height - 190, "&nbsp;&nbsp;&nbsp;&nbsp;".join(str(value).upper()),"    ".join(str(value).upper()), 140, copy_font_name, font_size-1)
+    wrap_text(c, "&nbsp;&nbsp;&nbsp;&nbsp;".join(str(value).upper()), 422, height - 617, 140, copy_font_name, font_size-1, 0)
 
+# Function to draw amount in numbers and amount in words
 def draw_amount(c, value, receipt):
     locale.setlocale(locale.LC_ALL, 'en_IN')
     locale_value = locale.format_string("%d", int(value), grouping=True)
@@ -120,11 +124,11 @@ def draw_amount(c, value, receipt):
     c.drawString(x_offset - 30, height - 700,f"{locale_value}")
     in_words = convert_to_words(value)
     c.setFont(font_name, font_size-2)
-    receipt_check_wrap(c, receipt, x_offset + 70, height - 294, x_offset + 120, height - 150, f"{in_words}", f"{in_words}", 380)
-
-    wrap_text(c, f"{in_words}", x_offset + 70, height - 684, 380, font_name, font_size-2)
+    receipt_cheque_wrap(c, receipt, x_offset + 70, height - 294, x_offset + 120, height - 150, f"{in_words}", f"{in_words}", 380, font_name, font_size-2)
+    wrap_text(c, f"{in_words}", x_offset + 70, height - 684, 380, font_name, font_size-2, 0)
     c.setFont(font_name, font_size)
 
+# Function to draw tick for EFT/Cheque or Cash
 def draw_payment_mode_tick(c, value, receipt):
     y = height - 210
     y_intent = height - 170
@@ -141,57 +145,62 @@ def draw_payment_mode_tick(c, value, receipt):
             receipt_check(c, receipt, x_offset-60, y, x_offset + 40, y_intent, '✔')
             c.drawString(x_offset-60, y_bottom, '✔')
 
+# Function to draw cheque date in boxes
 def draw_cheque_date(c, value, receipt):
     if value != '': 
         formatted_date = get_date_format(c, value)
-        c.setFont(font_name_bold, font_size-1)
+        c.setFont(font_name, font_size)
         receipt_check(c, receipt, x_offset + 45, height - 215, x_offset + 330, height - 170, "    ".join(formatted_date))
         c.drawString(x_offset + 45, height - 604, "    ".join(formatted_date))
         c.setFont(font_name, font_size)
 
+# Function to draw cheque number in boxes
 def draw_cheque_no(c, value, receipt):
     if value != '':
-        receipt_check_wrap(c, receipt, x_offset + 45, height - 230, x_offset + 70, height - 190, "    ".join(value), "    ".join(value), 0)
+        receipt_cheque_wrap(c, receipt, x_offset + 45, height - 230, x_offset + 70, height - 190, "    ".join(value), "    ".join(value), 0, font_name, font_size)
     c.drawString(x_offset + 45, height - 622, "    ".join(value))
 
+# Function to draw IFSC in boxes
 def draw_ifsc(c, value, receipt):
     if value !='':
-        c.setFont(font_name, font_size-1)
+        c.setFont(font_name, font_size)
         receipt_check(c, receipt, x_offset + 45, height - 248, x_offset + 300, height - 215, "    ".join(value).upper())
         c.drawString(x_offset + 45, height - 642, "    ".join(value).upper())
         c.setFont(font_name, font_size) 
 
+# Function to draw acct no. in boxes
 def draw_acct_no(c, value, receipt):
     if value != '':
-        c.setFont(font_name, font_size-1)
+        c.setFont(font_name, font_size)
         if receipt: c.drawString(x_offset + 47, height - 268, "    ".join(value).upper())
         c.drawString(x_offset + 47, height - 660, "    ".join(value).upper())
         c.setFont(font_name, font_size)
 
+# Function to draw Copy Type vertically on the RHS of receipt 
 def draw_copy_type(c, y, text):
     c.saveState()
-    c.translate(width - 15, y)        # Move to top half center
-    #c.translate(width - 15, (height - 235) - text_width)       # Office copy dims
-    c.rotate(90)                                                # Rotate vertically
+    c.translate(width - 15, y)                          # Move to top half center
+    c.rotate(90)                                        # Rotate vertically
     c.drawString(0, 0, text)                       
     c.restoreState()
 
-def create_vertical_watermark(c, top_text, bottom_text): #, watermark_pdf):
+# Function to generate copy type based on the copy type
+def create_vertical_watermark(c, top_text, bottom_text): 
     """Create a watermark PDF with vertical text on the right top corner."""
     width, height = A4  # A4 size in points (595x842)
     
-    c.setFont(font_name, 8)  # Set font and size
-    c.setFillColorRGB(0.5, 0.5, 0.5)  # Darker gray
+    c.setFont(copy_font_name, 8)                             # Set font and size
+    c.setFillColorRGB(0.5, 0.5, 0.5)                    # Darker gray
     text_width = c.stringWidth(top_text, font_name, 8) 
 
     draw_copy_type(c, (height - 220) - text_width, top_text)
     draw_copy_type(c, (height - 610) - text_width, bottom_text)
 
+# Function to draw barcode
 def draw_barcode(c, pdf_filename, filename):
     folder_name = os.path.basename(pdf_filename)
-    png_file = Path(pdf_filename) / filename #"0.png" 
+    png_file = Path(pdf_filename) / filename 
     image = Image.open(png_file)
-    #img_width, img_height = image.size 
 
     match folder_name:
         case 'SGPM_DN' | 'SPK_DPS':
@@ -202,45 +211,3 @@ def draw_barcode(c, pdf_filename, filename):
             c.drawImage(png_file, 220, 4, width=150, height=50)
     c.showPage()
     c.save()
-
-def create_filled_pdf(input_folder, filename, with_bg):
-    print(f"create_filled_pdf INPUT : {input_folder} = {with_bg}")
-    folder_name = os.path.basename(input_folder)
-    image_path = os.path.join(base_path, "Images", f"{folder_name}.pdf")
-    name = filename.split(".")[0]
-    output_pdf = Path(input_folder) / ( name + ".pdf" )
-
-    # Create a PDF buffer with reportlab
-    packet = io.BytesIO()
-    c = canvas.Canvas(packet, pagesize=A4)
-    draw_barcode(c,input_folder, filename) #, field_data)
-
-    packet.seek(0)
-    if packet.getbuffer().nbytes > 0:
-        new_pdf = PdfReader(packet)
-    else:
-        print("The file is empty. Please check the PDF generation process.")
-
-    if with_bg == 0:
-        writer = PdfWriter()                                        #Blank pdf logic to write on new pdf
-        for page in new_pdf.pages:
-            writer.add_page(page)
-        with open(str(output_pdf), "wb") as f:                      # Save the final filled PDF
-            writer.write(f)
-    else:
-        existing_pdf = PdfReader(image_path)                        #  to merge with existing pdf
-        writer = PdfWriter()
-        for page in existing_pdf.pages:
-            page.merge_page(new_pdf.pages[0])                       # Merge the new PDF with the old PDF
-            writer.add_page(page)
-
-        # Save the final filled PDF
-        try:
-            with open(str(output_pdf), "wb") as output_file:
-                writer.write(output_file)
-        except PermissionError:
-            print("Error: Permission denied. Close the file if it's open and try again.")
-        except IOError as e:
-            print(f"IO Error: {e}")
-        except Exception as e:
-            print(f"An unexpected error occurred: {e}")
