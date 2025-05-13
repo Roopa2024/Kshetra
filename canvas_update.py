@@ -22,7 +22,97 @@ copy_font_name = config.get('FontSettings', 'copy_font_name')
 font_size = config.getint('FontSettings', 'font_size')
 width, height = A4
 height = height - 56
-x_offset = 90
+#x_offset = 90
+printer_name = config.get('printer', 'printer')
+
+x_top_receipt_date = config.getint('top_dimensions', 'x_receipt_date')
+x_top_receipt_date_HP = config.getint('HP_dimensions', 'x_receipt_date')
+y_bottom_receipt_date_HP = config.get('HP_dimensions', 'y_bottom_receipt_date')
+y_top_receipt_date = config.get('top_dimensions', 'y_receipt_date')
+x_top_intent_receipt_date = config.getint('top_dimensions', 'x_intent_receipt_date')
+y_top_intent_receipt_date = config.get('top_dimensions', 'y_intent_receipt_date')
+x_bottom_receipt_date = config.getint('bottom_dimensions', 'x_receipt_date')
+y_bottom_receipt_date = config.get('bottom_dimensions', 'y_receipt_date')
+
+x_top_bank_date = config.getint('top_dimensions', 'x_bank_date')
+y_top_bank_date = config.get('top_dimensions', 'y_bank_date')
+x_top_intent_bank_date = config.getint('top_dimensions', 'x_intent_bank_date')
+y_top_intent_bank_date = config.get('top_dimensions', 'y_intent_bank_date')
+x_bottom_bank_date = config.getint('bottom_dimensions', 'x_bank_date')
+y_bottom_bank_date = config.get('bottom_dimensions', 'y_bank_date')
+
+x_top_utrn = config.getint('top_dimensions', 'x_utrn')
+y_top_utrn = config.get('top_dimensions', 'y_utrn')
+x_top_intent_utrn = config.getint('top_dimensions', 'x_intent_utrn')
+y_top_intent_utrn = config.get('top_dimensions', 'y_intent_utrn')
+x_top_utrn_HP = config.getint('HP_dimensions', 'x_utrn')
+x_bottom_utrn = config.getint('bottom_dimensions', 'x_utrn')
+y_bottom_utrn = config.get('bottom_dimensions', 'y_utrn')
+
+x_top_amount = config.getint('top_dimensions', 'x_amount')
+y_top_amount = config.get('top_dimensions', 'y_amount')
+x_top_intent_amount = config.getint('top_dimensions', 'x_intent_amount')
+y_top_intent_amount = config.get('top_dimensions', 'y_intent_amount')
+x_bottom_amount = config.getint('bottom_dimensions', 'x_amount')
+y_bottom_amount = config.get('bottom_dimensions', 'y_amount')
+y_bottom_amount_HP = config.get('HP_dimensions', 'y_amount')
+x_top_amount_in_words = config.getint('top_dimensions', 'x_amount_in_words')
+y_top_amount_in_words = config.get('top_dimensions', 'y_amount_in_words')
+x_top_intent_amount_in_words = config.getint('top_dimensions', 'x_intent_amount_in_words')
+y_top_intent_amount_in_words = config.get('top_dimensions', 'y_intent_amount_in_words')
+x_bottom_amount_in_words = config.getint('bottom_dimensions', 'x_amount_in_words')
+y_bottom_amount_in_words = config.get('bottom_dimensions', 'y_amount_in_words')
+y_bottom_amount_in_words_HP = config.get('HP_dimensions', 'y_amount_in_words')
+
+x_top_EFT_tick= config.getint('top_dimensions', 'x_EFT_tick')
+x_top_cheque_tick = config.getint('top_dimensions', 'x_cheque_tick')
+x_top_cash_tick = config.getint('top_dimensions', 'x_cash_tick')
+y_top_tick = config.get('top_dimensions', 'y_tick')
+x_top_intent_EFT_tick = config.getint('top_dimensions', 'x_intent_EFT_tick')
+x_top_intent_cheque_tick = config.getint('top_dimensions', 'x_intent_cheque_tick')
+x_top_intent_cash_tick = config.getint('top_dimensions', 'x_intent_cash_tick')
+y_top_intent_tick = config.get('top_dimensions', 'y_intent_tick')
+x_bottom_EFT_tick = config.getint('bottom_dimensions', 'x_EFT_tick')
+x_bottom_cheque_tick = config.getint('bottom_dimensions', 'x_cheque_tick')
+x_bottom_cash_tick = config.getint('bottom_dimensions', 'x_cash_tick')
+y_bottom_tick = config.get('bottom_dimensions', 'y_tick')
+
+x_top_cheque_date = config.getint('top_dimensions', 'x_cheque_date')
+y_top_cheque_date = config.get('top_dimensions', 'y_cheque_date')
+x_top_intent_cheque_date = config.getint('top_dimensions', 'x_intent_cheque_date')
+y_top_intent_cheque_date = config.get('top_dimensions', 'y_intent_cheque_date')
+x_bottom_cheque_date = config.getint('bottom_dimensions', 'x_cheque_date')
+y_bottom_cheque_date = config.get('bottom_dimensions', 'y_cheque_date')
+
+x_top_cheque_no = config.getint('top_dimensions', 'x_cheque_no')
+y_top_cheque_no = config.get('top_dimensions', 'y_cheque_no')
+x_top_intent_cheque_no = config.getint('top_dimensions', 'x_intent_cheque_no')
+y_top_intent_cheque_no = config.get('top_dimensions', 'y_intent_cheque_no')
+x_bottom_cheque_no = config.getint('bottom_dimensions', 'x_cheque_no')
+y_bottom_cheque_no = config.get('bottom_dimensions', 'y_cheque_no')
+
+x_top_ifsc = config.getint('top_dimensions', 'x_ifsc')
+y_top_ifsc = config.get('top_dimensions', 'y_ifsc')
+x_top_intent_ifsc = config.getint('top_dimensions', 'x_intent_ifsc')
+y_top_intent_ifsc = config.get('top_dimensions', 'y_intent_ifsc')
+x_bottom_ifsc = config.getint('bottom_dimensions', 'x_ifsc')
+y_bottom_ifsc = config.get('bottom_dimensions', 'y_ifsc')
+
+x_top_acct_no = config.getint('top_dimensions', 'x_acct_no')
+y_top_acct_no = config.get('top_dimensions', 'y_acct_no')
+x_bottom_acct_no = config.getint('bottom_dimensions', 'x_acct_no')
+y_bottom_acct_no = config.get('bottom_dimensions', 'y_acct_no')
+
+x_barcode = config.getint('top_dimensions', 'x_barcode')
+y_top_barcode = config.getint('top_dimensions', 'y_barcode')
+y_top_barcode_intent = config.getint('top_dimensions', 'y_barcode_intent')
+y_bottom_barcode = config.getint('bottom_dimensions', 'y_barcode')
+y_bottom_barcode_intent = config.getint('bottom_dimensions', 'y_barcode_intent')
+barcode_width = config.getint('top_dimensions', 'barcode_width')
+barcode_height = config.getint('top_dimensions', 'barcode_height')
+
+y_top_copy_type = config.get('top_dimensions', 'y_copy_type')
+y_bottom_copy_type = config.get('bottom_dimensions', 'y_copy_type')
 
 # Converting date to the desired format
 def get_date_format(c, value):
@@ -94,86 +184,102 @@ def receipt_cheque_wrap(c, receipt, x1, y1, x2, y2, text1, text2, limit, font_na
     c.setFont(font_name, font_size)
 
 # Function to draw receipt date inside the boxes
-def draw_receipt_date(c, value, receipt):
+def draw_receipt_date(c, value, receipt, pdf):
     formatted_date = get_date_format(c, value)
     c.setFont(font_name, font_size) 
-    x, y = (433, height - 82) if receipt else (420, height - 66)
+    if pdf:
+        x_update = x_bottom_receipt_date = x_top_receipt_date
+        y_update = eval(y_bottom_receipt_date)
+    else:
+        x_update = x_bottom_receipt_date = x_top_receipt_date_HP
+        y_update = eval(y_bottom_receipt_date_HP)
+    x, y = (x_update, eval(y_top_receipt_date)) if receipt else (x_top_intent_receipt_date, eval(y_top_intent_receipt_date))
     c.drawString(x, y, "    ".join(formatted_date) )
-    c.drawString(433, height - 470, "    ".join(formatted_date) )
+    c.drawString(x_bottom_receipt_date, y_update, "    ".join(formatted_date) )
     c.setFont(font_name, font_size) 
 
 # Function to draw bank date inside the boxes
 def draw_bank_date(c, value,receipt):
     formatted_date = get_date_format(c, value)
     c.setFont(font_name, font_size) 
-    receipt_check(c, receipt,  422, height - 220, x_offset + 330, height - 170, "    ".join(formatted_date))
-    c.drawString(422, height - 608, "    ".join(formatted_date))
+    receipt_check(c, receipt,  x_top_bank_date, eval(y_top_bank_date), x_top_intent_bank_date, eval(y_top_intent_bank_date), "    ".join(formatted_date))
+    c.drawString(x_bottom_bank_date, eval(y_bottom_bank_date), "    ".join(formatted_date))
     c.setFont(font_name, font_size) 
 
 # Function to draw UTRN
-def draw_utrn(c, value, receipt):
-    receipt_cheque_wrap(c, receipt, 422, height - 227, x_offset + 70, height - 190, "&nbsp;&nbsp;&nbsp;&nbsp;".join(str(value).upper()),"    ".join(str(value).upper()), 140, copy_font_name, font_size-1)
-    wrap_text(c, "&nbsp;&nbsp;&nbsp;&nbsp;".join(str(value).upper()), 422, height - 617, 140, copy_font_name, font_size-1, 0)
+def draw_utrn(c, value, receipt, pdf):
+    if pdf:
+        x = x_top_utrn
+    else:
+        x = x_top_utrn_HP
+    receipt_cheque_wrap(c, receipt, x, eval(y_top_utrn), x_top_intent_utrn, eval(y_top_intent_utrn) , "&nbsp;&nbsp;&nbsp;&nbsp;".join(str(value).upper()),"    ".join(str(value).upper()), 140, copy_font_name, font_size-1)
+    wrap_text(c, "&nbsp;&nbsp;&nbsp;&nbsp;".join(str(value).upper()), x_bottom_utrn, eval(y_bottom_utrn), 140, copy_font_name, font_size-1, 0)
 
 # Function to draw amount in numbers and amount in words
-def draw_amount(c, value, receipt):
+def draw_amount(c, value, receipt, pdf):
     locale.setlocale(locale.LC_ALL, 'en_IN')
     locale_value = locale.format_string("%d", int(value), grouping=True)
-    x, y = (x_offset - 30, height - 310) if receipt else (x_offset, height - 150)
+    x, y = (x_top_amount, eval(y_top_amount)) if receipt else (x_top_intent_amount, eval(y_top_intent_amount))
     c.drawString(x, y, f"{locale_value}")
-    c.drawString(x_offset - 30, height - 700,f"{locale_value}")
+    if pdf:
+        y = eval(y_bottom_amount)
+        y_words = eval(y_bottom_amount_in_words)
+    else:
+        y = eval(y_bottom_amount_HP)
+        y_words = eval(y_bottom_amount_in_words_HP)
+    c.drawString(x_bottom_amount, y,f"{locale_value}")
     in_words = convert_to_words(value)
     c.setFont(font_name, font_size-2)
-    receipt_cheque_wrap(c, receipt, x_offset + 70, height - 294, x_offset + 120, height - 150, f"{in_words}", f"{in_words}", 380, font_name, font_size-2)
-    wrap_text(c, f"{in_words}", x_offset + 70, height - 684, 380, font_name, font_size-2, 0)
+    receipt_cheque_wrap(c, receipt, x_top_amount_in_words, eval(y_top_amount_in_words), x_top_intent_amount_in_words, eval(y_top_intent_amount_in_words), f"{in_words}", f"{in_words}", 380, font_name, font_size-2)
+    wrap_text(c, f"{in_words}", x_bottom_amount_in_words, y_words, 380, font_name, font_size-2, 0)
     c.setFont(font_name, font_size)
 
 # Function to draw tick for EFT/Cheque or Cash
 def draw_payment_mode_tick(c, value, receipt):
-    y = height - 210
-    y_intent = height - 170
-    y_bottom = height - 600
+    #y = height - 210
+    #y_intent = height - 170
+    #y_bottom = height - 600
 
     match value:
         case 'EFT':
-            receipt_check(c, receipt, 343, y, x_offset + 190, y_intent, '✔')
-            c.drawString(343, y_bottom, '✔')
+            receipt_check(c, receipt, x_top_EFT_tick, eval(y_top_tick), x_top_intent_EFT_tick, eval(y_top_intent_tick), '✔')
+            c.drawString(x_bottom_EFT_tick, eval(y_bottom_tick), '✔')
         case 'Cheque':
-            receipt_check(c, receipt, x_offset-20, y, x_offset + 110, y_intent, '✔')
-            c.drawString(x_offset-25, y_bottom, '✔')
+            receipt_check(c, receipt, x_top_cheque_tick, eval(y_top_tick), x_top_intent_cheque_tick, eval(y_top_intent_tick), '✔')
+            c.drawString(x_bottom_cheque_tick, eval(y_bottom_tick), '✔')
         case 'Cash':
-            receipt_check(c, receipt, x_offset-60, y, x_offset + 40, y_intent, '✔')
-            c.drawString(x_offset-60, y_bottom, '✔')
+            receipt_check(c, receipt, x_top_cash_tick, eval(y_top_tick), x_top_intent_cash_tick, eval(y_top_intent_tick), '✔')
+            c.drawString(x_bottom_cash_tick, eval(y_bottom_tick), '✔')
 
 # Function to draw cheque date in boxes
 def draw_cheque_date(c, value, receipt):
     if value != '': 
         formatted_date = get_date_format(c, value)
         c.setFont(font_name, font_size)
-        receipt_check(c, receipt, x_offset + 45, height - 215, x_offset + 330, height - 170, "    ".join(formatted_date))
-        c.drawString(x_offset + 45, height - 604, "    ".join(formatted_date))
+        receipt_check(c, receipt, x_top_cheque_date, eval(y_top_cheque_date), x_top_intent_cheque_date, eval(y_top_intent_cheque_date), "    ".join(formatted_date))
+        c.drawString(x_bottom_cheque_date, eval(y_bottom_cheque_date), "    ".join(formatted_date))
         c.setFont(font_name, font_size)
 
 # Function to draw cheque number in boxes
 def draw_cheque_no(c, value, receipt):
     if value != '':
-        receipt_cheque_wrap(c, receipt, x_offset + 45, height - 230, x_offset + 70, height - 190, "    ".join(value), "    ".join(value), 0, font_name, font_size)
-    c.drawString(x_offset + 45, height - 622, "    ".join(value))
+        receipt_cheque_wrap(c, receipt, x_top_cheque_no, eval(y_top_cheque_no), x_top_intent_cheque_no, eval(y_top_intent_cheque_no), "    ".join(value), "    ".join(value), 0, font_name, font_size)
+    c.drawString(x_bottom_cheque_no, eval(y_bottom_cheque_no), "    ".join(value))
 
 # Function to draw IFSC in boxes
 def draw_ifsc(c, value, receipt):
     if value !='':
         c.setFont(font_name, font_size)
-        receipt_check(c, receipt, x_offset + 45, height - 248, x_offset + 300, height - 215, "    ".join(value).upper())
-        c.drawString(x_offset + 45, height - 642, "    ".join(value).upper())
+        receipt_check(c, receipt, x_top_ifsc, eval(y_top_ifsc), x_top_intent_ifsc, eval(y_top_intent_ifsc), "    ".join(value).upper())
+        c.drawString(x_bottom_ifsc, eval(y_bottom_ifsc), "    ".join(value).upper())
         c.setFont(font_name, font_size) 
 
 # Function to draw acct no. in boxes
 def draw_acct_no(c, value, receipt):
     if value != '':
         c.setFont(font_name, font_size)
-        if receipt: c.drawString(x_offset + 47, height - 268, "    ".join(value).upper())
-        c.drawString(x_offset + 47, height - 660, "    ".join(value).upper())
+        if receipt: c.drawString(x_top_acct_no, eval(y_top_acct_no), "    ".join(value).upper())
+        c.drawString(x_bottom_acct_no, eval(y_bottom_acct_no), "    ".join(value).upper())
         c.setFont(font_name, font_size)
 
 # Function to draw Copy Type vertically on the RHS of receipt 
@@ -193,8 +299,8 @@ def create_vertical_watermark(c, top_text, bottom_text):
     c.setFillColorRGB(0.5, 0.5, 0.5)                    # Darker gray
     text_width = c.stringWidth(top_text, font_name, 8) 
 
-    draw_copy_type(c, (height - 220) - text_width, top_text)
-    draw_copy_type(c, (height - 610) - text_width, bottom_text)
+    draw_copy_type(c, eval(y_top_copy_type) - text_width, top_text)
+    draw_copy_type(c, eval(y_bottom_copy_type) - text_width, bottom_text)
 
 # Function to draw barcode
 def draw_barcode(c, pdf_filename, filename):
@@ -204,10 +310,10 @@ def draw_barcode(c, pdf_filename, filename):
 
     match folder_name:
         case 'SGPM_DN' | 'SPK_DPS':
-            c.drawImage(png_file, 220, 422, width=150, height=50)
-            c.drawImage(png_file, 220, 2, width=150, height=50)
+            c.drawImage(png_file, x_barcode, y_top_barcode, width=barcode_width, height=barcode_height)
+            c.drawImage(png_file, x_barcode, y_bottom_barcode, width=barcode_width, height=barcode_height)
         case 'SGPT' | 'SPT':
-            c.drawImage(png_file, 220, 424, width=150, height=50)
-            c.drawImage(png_file, 220, 4, width=150, height=50)
+            c.drawImage(png_file, x_barcode, y_top_barcode_intent, width=barcode_width, height=barcode_height)
+            c.drawImage(png_file, x_barcode, y_bottom_barcode_intent, width=barcode_width, height=barcode_height)
     c.showPage()
     c.save()
