@@ -61,6 +61,19 @@ y_branch_name = config.get('top_dimensions', 'y_branch_name')
 y_top_print_date = config.get('top_dimensions', 'y_print_date')
 y_bottom_print_date = config.getint('bottom_dimensions', 'y_print_date')
 
+x_top_qrcode = config.getint('top_dimensions', 'x_qrcode')
+y_top_qrcode = config.get('top_dimensions', 'y_qrcode')
+x_bottom_qrcode = config.getint('bottom_dimensions', 'x_qrcode')
+y_bottom_qrcode = config.get('bottom_dimensions', 'y_qrcode')
+qrcode_size = config.getint('top_dimensions', 'qrcode_size')
+
+x_barcode = config.getint('top_dimensions', 'x_barcode')
+y_barcode = config.getint('top_dimensions', 'y_barcode')
+y_top_barcode_receipt = config.getint('top_dimensions', 'y_barcode_receipt')
+y_bottom_barcode_receipt = config.getint('bottom_dimensions', 'y_barcode_receipt')
+barcode_width = config.getint('top_dimensions', 'barcode_width')
+barcode_height = config.getint('top_dimensions', 'barcode_height')
+
 # Function to get the pdf directory path for EXE
 def get_pdf_directory():
     if hasattr(sys, '_MEIPASS'):    # Running as a bundled .exe
@@ -180,8 +193,8 @@ def create_pdf_from_kwargs(kwargs, pdf_path, entity, with_bg, top_text, bottom_t
     if kwargs.get("QR Code"):
         try:
             qr_image = ImageReader(kwargs["QR Code"])
-            if receipt: c.drawImage(qr_image, 480, height - 65, width=60, height=60)
-            c.drawImage(qr_image, 480, height - 457, width=60, height=60)
+            if receipt: c.drawImage(qr_image, x_top_qrcode, eval(y_top_qrcode), width=qrcode_size, height=qrcode_size)
+            c.drawImage(qr_image, x_bottom_qrcode, eval(y_bottom_qrcode), width=qrcode_size, height=qrcode_size)
         except Exception as e:
             print("Error adding QR Code:", e)
 
@@ -190,8 +203,8 @@ def create_pdf_from_kwargs(kwargs, pdf_path, entity, with_bg, top_text, bottom_t
         try:
             barcode_image = ImageReader(kwargs["Barcode"])
             name = entity.split(".")[0]
-            c.drawImage(barcode_image, 220, 395, width=150, height=50)
-            c.drawImage(barcode_image, 220, 5, width=150, height=50)
+            c.drawImage(barcode_image, x_barcode, y_top_barcode_receipt, width=barcode_width, height=barcode_height)
+            c.drawImage(barcode_image, x_barcode, y_bottom_barcode_receipt, width=barcode_width, height=barcode_height)
         except Exception as e:
             print("Error adding Barcode:", e)
    
