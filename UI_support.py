@@ -232,6 +232,12 @@ def clear_fields(widget):
             widget.delete("1.0", tk.END)
     #checkbox_var.set(0)
 
+#Receipt Cancel function
+def cancel(selected_indx):
+    dest_excel_path = generate_excel_file(entity_xcls[selected_indx])
+    excel_data.cancel_last_row(dest_excel_path)
+
+
 # Submit Function
 def submit(selection_var, cheque_vars, online_vars, selected_indx, checkbox_var):   
     details = {}
