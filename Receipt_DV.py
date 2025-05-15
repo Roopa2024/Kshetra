@@ -85,6 +85,8 @@ def add_group_4and5(frame, group_frames):
     include_bg(group_frames["group5_frame"], checkbox_var)
     submit_button = tk.Button(group_frames["group5_frame"], text="Print", font=font_settings, command=lambda: UI_support.submit(selection_var, cheque_vars, online_vars, selected_indx, checkbox_var))   # Submit Button
     submit_button.grid(row=2, column=2, padx=10, pady=10) 
+    cancel_button = tk.Button(group_frames["group5_frame"], text="Cancel Receipt", font=font_settings, command=lambda: UI_support.cancel(selected_indx))   # Cancel Button
+    cancel_button.grid(row=3, column=2, padx=10, pady=10)    
 
     def toggle_cheque_fields():
         #print(f"Selection is {selection_var.get()}")
@@ -156,11 +158,13 @@ def draw_receipt(frame):
 
 def draw_debit_voucher(frame):
     dv_entries = []
+    group_frames = {}
+
     for i in range(3): 
         row_offset = i * 6
         receipt_frame = tk.LabelFrame(frame,  text=f"Voucher {i+1}", bg="#99ccff", font=font_settings_bold,
-        bd=2,             # Border width
-        relief="groove",  # Can be 'groove', 'ridge', 'sunken', 'raised', etc.
+        bd=2,                                               # Border width
+        relief="groove",                                    # Can be 'groove', 'ridge', 'sunken', 'raised', etc.
         padx=5, pady=5
         )
         receipt_frame.grid(row=row_offset+1 , column=0, columnspan=2, padx=10, pady=10, sticky="ew")
@@ -200,6 +204,8 @@ def draw_debit_voucher(frame):
     include_bg(print_frame, checkbox_var)
     submit_button = tk.Button(print_frame, text="Print", font=font_settings, command=lambda: UI_support.dv_print(dv_entries, selected_indx, checkbox_var))   # Submit Button
     submit_button.grid(row=2, column=2, padx=10, pady=10) 
+
+    add_group_4and5(frame, group_frames)
 
 def draw_inv_voucher(frame):
     for i in range(3):
