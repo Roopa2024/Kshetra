@@ -39,10 +39,20 @@ def toggle_maximize_restore(window, event=None): #event=None
         window.geometry("800x400")  # Set the size of the normal window to 1200x800
 
 def open_second_window(entity, index):
-    #os.system(f"python Receipt_DV.py {entity} {index}")
-    os.system(f".\App_receipt\Receipt_DV.exe {entity} {index}")
+    #os.system(f"python Receipt_voucher.py {entity} {index}")
+    os.system(rf".\App_receipt\Receipt_voucher.exe {entity} {index}")
     print(f"Entity = {entity} and idx = {str(index)}")
-    #subprocess.Popen(["Receipt_DV.exe", entity, str(index)])
+    subprocess.Popen(["Receipt_voucher.exe", entity, str(index)])
+
+    #Fix for _internal path 
+    #app_dir = os.path.dirname(sys.executable)  # Directory of the running EXE
+    #print(f"App Dir {app_dir}")
+    #exe_path = os.path.join(app_dir, "Receipt_App.exe")
+    #print(f"App Dir {exe_path}")
+    #if not os.path.exists(exe_path):
+    #    print("❌ Receipt_App.exe not found!")
+    #    return
+    #subprocess.Popen([exe_path, entity, str(index)])
 
 # Function to be called when button is clicked
 def button_click(button_name):
