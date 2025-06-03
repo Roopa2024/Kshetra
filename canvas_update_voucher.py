@@ -27,10 +27,10 @@ font_size = config.getint('FontSettings', 'font_size')
 width, height = A4
 height = height - 56
 x_offset = 90
-x_receipt_date = config.getint('voucher_dimensions', 'x_receipt_date')
-y_top_receipt_date = config.get('voucher_dimensions', 'y_top_receipt_date')
-y_middle_receipt_date = config.get('voucher_dimensions', 'y_middle_receipt_date')
-y_bottom_receipt_date = config.get('voucher_dimensions', 'y_bottom_receipt_date')
+x_v_date = config.getint('voucher_dimensions', 'x_v_date')
+y_top_v_date = config.get('voucher_dimensions', 'y_top_v_date')
+y_middle_v_date = config.get('voucher_dimensions', 'y_middle_v_date')
+y_bottom_v_date = config.get('voucher_dimensions', 'y_bottom_v_date')
 
 x_amount = config.getint('voucher_dimensions', 'x_amount')
 y_top_amount = config.get('voucher_dimensions', 'y_top_amount')
@@ -43,14 +43,14 @@ y_middle_amount_in_words = config.get('voucher_dimensions', 'y_middle_amount_in_
 y_bottom_amount_in_words = config.get('voucher_dimensions', 'y_bottom_amount_in_words')
 line_width = config.getint('voucher_dimensions', 'line_width')
 
-x_payto_purpose = config.getint('voucher_dimensions', 'x_payto_purpose')
+x_payto_pan = config.getint('voucher_dimensions', 'x_payto_pan')
 y_top_payto = config.get('voucher_dimensions', 'y_top_payto')
 y_middle_payto = config.get('voucher_dimensions', 'y_middle_payto')
 y_bottom_payto = config.get('voucher_dimensions', 'y_bottom_payto')
 
-y_top_purpose = config.get('voucher_dimensions', 'y_top_purpose')
-y_middle_purpose = config.get('voucher_dimensions', 'y_middle_purpose')
-y_bottom_purpose = config.get('voucher_dimensions', 'y_bottom_purpose')
+y_top_pan= config.get('voucher_dimensions', 'y_top_pan')
+y_middle_pan = config.get('voucher_dimensions', 'y_middle_pan')
+y_bottom_pan = config.get('voucher_dimensions', 'y_bottom_pan')
 
 x_qrcode = config.getint('voucher_dimensions', 'x_qrcode')
 x_qrcode_DN_DPS = config.getint('voucher_dimensions', 'x_qrcode_DN_DPS')
@@ -72,51 +72,119 @@ def get_date_format(c, value):
     c.setFont(font_name, font_size) 
     return formatted_date
 
-# Function to draw receipt date inside the boxes
-def draw_receipt_date(c, i, value):
+# Function to draw voucher date inside the boxes
+def draw_voucher_date(c, i, value):
     formatted_date = get_date_format(c, value)
     c.setFont(font_name, font_size) 
     if i == 0:
-        c.drawString(x_receipt_date, eval(y_top_receipt_date), "    ".join(formatted_date) )
+        c.drawString(x_v_date, eval(y_top_v_date), "    ".join(formatted_date) )
     elif i == 1:
-        c.drawString(x_receipt_date, eval(y_middle_receipt_date), "    ".join(formatted_date) )
+        c.drawString(x_v_date, eval(y_middle_v_date), "    ".join(formatted_date) )
     elif i == 2:
-        c.drawString(x_receipt_date, eval(y_bottom_receipt_date), "    ".join(formatted_date) )
+        c.drawString(x_v_date, eval(y_bottom_v_date), "    ".join(formatted_date) )
     #c.setFont(font_name, font_size) 
 
-def print_amount(c, locale_value, x1, x2, y1, y2, in_words, line_width):
+def print_amount_ac(c, locale_value, x1, x2, y1, y2, combined_amount_ac, line_width):
     if locale_value != "":
             c.drawString(x1, y1, f"{locale_value} /-")
-            canvas_update.wrap_text(c, f"{in_words} ONLY", x2, y2, line_width, font_name, font_size, 0)
+    wrap_text_voucher(c, f"{combined_amount_ac}", x2, y2, line_width, font_name, font_size, 1)
+
+# Function to wrap text
+def wrap_text_voucher(c, text, x, y, width, font_name, font_size, receipt):
+    styles = getSampleStyleSheet()
+    style = styles['Normal']
+    style.fontName = font_name
+    style.fontSize = font_size
+    style.leading = font_size + 9                           #vertical spacing between lines
+    
+    # To adjust the max 200 chars in Address 
+    if receipt:
+        style.leftIndent = 0
+        style.firstLineIndent = 80
+    else:
+        style.leftIndent = 0
+        style.firstLineIndent = 40
+    #    #style.fontSize = font_size-4
+
+    #if "&nbsp;&nbsp;&nbsp;&nbsp;" not in text:              #vertical spacing for 'Amount in words' is different
+    #    style.leading = font_size + 8
+
+    paragraph = Paragraph(text, style)                      # Create a Paragraph object which wraps the text
+    _, text_height = paragraph.wrap(width, 600)             # Get actual text height
+    paragraph.drawOn(c, x-80, y - text_height)     
+
+# Custom function to convert number to INR words (Indian Rupees in English)
+def convert_to_words(amount):
+    try:
+        amount = int(amount)
+    except ValueError:
+        #messagebox.showerror("Amount Error", "Please enter a valid amount.")
+        return
+    
+    whole_number = int(amount)                              # Split the amount into whole and fractional parts
+    fraction_part = round((amount - whole_number) * 100)    # Getting the fraction part as Paise
+    whole_in_words = num2words(whole_number, lang='en_IN')  # Convert whole number into words in English
+    capitalized_number = whole_in_words.upper()             # Capitalize the first letter of each word
+    if fraction_part > 0:                                   # Convert fraction part (Paise) into words if it's non-zero
+        fraction_in_words = num2words(fraction_part, lang='en_IN')
+        capitalized_fractions = fraction_in_words.upper()
+        result = f"{capitalized_number} RUPEES {capitalized_fractions} PAISE"
+    else:
+        result = f"{capitalized_number} RUPEES"
+    return result
 
 # Function to draw amount in numbers and amount in words
-def draw_voucher(c, i, value, pay_to, purpose, dest_excel_path, pdf_path):
+def draw_voucher(c, i, value, pay_to, pan, addr, pur_code, pur_head, pur_cat, exp_type, mode, cheque_date, cheque_no_val, cheque_IFSC, cheque_AC_no, eft_date, utrn_val, dest_excel_path, pdf_path):
     c.setFont(font_name, font_size)
     locale.setlocale(locale.LC_ALL, 'en_IN')
     if value:
         locale_value = locale.format_string("%d", int(value), grouping=True)
     else:
         locale_value = ""
+        
+    in_words = convert_to_words(value)
+    if in_words is None:
+        in_words = ""
+    else:
+        in_words = in_words.title() + " Only ; "
 
-    in_words = canvas_update.convert_to_words(value)
+    combined_payto = pay_to #+ ". PAN: " + pan + " Address: " + addr
+    if pan:
+        combined_payto += f". PAN: {pan}"
+    if addr:
+        combined_payto += f" Address: {addr}"
+    
+    if pur_code:
+        combined_purchase = "PC: " + pur_code + " PH: " + pur_head + " PCat: " + pur_cat + " EP: " + exp_type 
+    else:
+        combined_purchase = ''
+
+    if mode == 'Cheque':
+        combined_amount_ac = in_words + " CH Date:" + cheque_date + " CH#:" + cheque_no_val + " IFSC:" + cheque_IFSC + " A/C#:" + cheque_no_val
+    elif mode == 'EFT':
+        combined_amount_ac = in_words + " EFT Date:" + eft_date + " UTRN:" + utrn_val
+    else:
+        combined_amount_ac = in_words
+
     if i == 0:
-        print_amount(c, locale_value, x_amount, x_amount_in_words, eval(y_top_amount), eval(y_top_amount_in_words), in_words, line_width)
-        canvas_update.wrap_text(c, f"{pay_to}", x_payto_purpose, eval(y_top_payto), line_width, font_name, font_size, 0)
-        canvas_update.wrap_text(c, f"{purpose}", x_payto_purpose, eval(y_top_purpose), line_width, font_name, font_size, 0)
+        print_amount_ac(c, locale_value, x_amount, x_amount_in_words, eval(y_top_amount), eval(y_top_amount_in_words), combined_amount_ac, line_width)
+        wrap_text_voucher(c, f"{combined_payto}", x_payto_pan, eval(y_top_payto), line_width, font_name, font_size, 0)
+        wrap_text_voucher(c, f"{combined_purchase}", x_payto_pan, eval(y_top_pan), line_width, font_name, font_size, 0)
     elif i == 1:
-        print_amount(c, locale_value, x_amount, x_amount_in_words, eval(y_middle_amount), eval(y_middle_amount_in_words), in_words, line_width)
-        canvas_update.wrap_text(c, f"{pay_to}", x_payto_purpose, eval(y_middle_payto), line_width, font_name, font_size, 0)
-        canvas_update.wrap_text(c, f"{purpose}", x_payto_purpose, eval(y_middle_purpose), line_width, font_name, font_size, 0)
+        print_amount_ac(c, locale_value, x_amount, x_amount_in_words, eval(y_middle_amount), eval(y_middle_amount_in_words), combined_amount_ac, line_width)
+        wrap_text_voucher(c, f"{combined_payto}", x_payto_pan, eval(y_middle_payto), line_width, font_name, font_size, 0)
+        wrap_text_voucher(c, f"{combined_purchase}", x_payto_pan, eval(y_middle_pan), line_width, font_name, font_size, 0)
     elif i == 2:
-        print_amount(c, locale_value, x_amount, x_amount_in_words, eval(y_bottom_amount), eval(y_bottom_amount_in_words), in_words, line_width)
-        canvas_update.wrap_text(c, f"{pay_to}", x_payto_purpose, eval(y_bottom_payto), line_width, font_name, font_size, 0)
-        canvas_update.wrap_text(c, f"{purpose}", x_payto_purpose, eval(y_bottom_purpose), line_width, font_name, font_size, 0)
+        print_amount_ac(c, locale_value, x_amount, x_amount_in_words, eval(y_bottom_amount), eval(y_bottom_amount_in_words), combined_amount_ac, line_width)
+        wrap_text_voucher(c, f"{combined_payto}", x_payto_pan, eval(y_bottom_payto), line_width, font_name, font_size, 0)
+        wrap_text_voucher(c, f"{combined_purchase}", x_payto_pan, eval(y_bottom_pan), line_width, font_name, font_size, 0)
     
     draw_code(c, dest_excel_path)
+    return True
 
 def draw_code(c, dest_excel_path):
     wb = load_workbook(dest_excel_path)
-    ws = wb.active
+    ws = wb["Sheet1"]    #wb.active
 
     # Get header row to find correct columns
     header_row = next(ws.iter_rows(min_row=1, max_row=1, values_only=True))
