@@ -1,8 +1,10 @@
 import tkinter as tk
 from tkinter import ttk
 from tkcalendar import DateEntry
-import os, configparser, sys
-import UI_support
+import os, configparser, sys, re
+import UI_support, voucher
+import pandas as pd
+from collections import defaultdict
 
 # Load configurations
 config_path = os.path.join(os.path.dirname(__file__), "config", "receipt.ini")
@@ -11,6 +13,8 @@ config.read(config_path)
 font_settings = (config.get('FontSettings', 'font_name'), config.getint('FontSettings', 'font_size'))
 font_settings_bold = (config.get('FontSettings', 'font_name'), config.getint('FontSettings', 'font_size'), "bold")
 mapping = config.get('Filenames', 'mapping_sheet')
+dv_entity_xcl = config.get('Filenames', 'dv_input_files')
+dv_entity_xcls = dv_entity_xcl.split(',')
 
 def add_group_4and5(frame, group_frames):
 
@@ -25,12 +29,12 @@ def add_group_4and5(frame, group_frames):
 
     # Cheque Frame (Right)
     cheque_frame = tk.Frame(group_frames["group6_frame"], borderwidth=2, relief="groove", bg="#99ccff")
-    cheque_frame.grid(row=2, column=1, padx=50, pady=20, sticky="nsew")
+    cheque_frame.grid(row=1, column=1, padx=50, pady=10, sticky="nsew")
     cheque_frame.grid_remove()  # Hide initially
 
     # Online Frame (Right)
     online_frame = tk.Frame(group_frames["group6_frame"], borderwidth=2, relief="groove", bg="#99ccff")
-    online_frame.grid(row=2, column=1, padx=50, pady=20, sticky="nsew")
+    online_frame.grid(row=1, column=1, padx=50, pady=20, sticky="nsew")
     online_frame.grid_remove()                                                          # Hide initially
 
     tk.Label(cheque_frame, text="Cheque Details", font=font_settings_bold, bg="#99ccff").grid(row=0, column=0, columnspan=2, pady=10)
@@ -39,8 +43,6 @@ def add_group_4and5(frame, group_frames):
         ("Cheque No.:", tk.Entry, {"textvariable": tk.StringVar(), "validate": "key", "validatecommand": (validate_number, "%P")}),
         ("IFSC Code:", tk.Entry, {"textvariable": tk.StringVar()}),
         ("Account No.:", tk.Entry, {"textvariable": tk.StringVar()}),
-        ("Bank name:", tk.Entry, {"validate": "key", "validatecommand": vcmd}),
-        ("Branch:", tk.Entry, {"validate": "key", "validatecommand": vcmd_branch}),
     ]
     #underline_font = tkFont.Font(family=(config.get('FontSettings', 'font_name')), size=config.getint('FontSettings', 'font_size'), weight="bold", underline=1)
     tk.Label(online_frame, text="EFT", font=font_settings_bold, bg="#99ccff").grid(row=0, column=0,columnspan=2, pady=10)
@@ -75,14 +77,13 @@ def add_group_4and5(frame, group_frames):
             if "UTRN:" in label:
                 limit = 27 
             var.trace_add("write", lambda *args, v=var, l=limit: UI_support.limit_chars(v, l))
-            online_vars[label] = var                                                    # Store for later
-    
+            online_vars[label] = var   
         entry = widget(online_frame, font=font_settings, width=28, **options)
         entry.grid(row=i + 1, column=1, padx=5, pady=5)
         online_vars[label] = entry                                                      # Store reference
     online_frame.grid(row=2, column=1, rowspan=2, padx=50, pady=20, sticky="nsew")
 
-    include_bg(group_frames["group5_frame"], checkbox_var)
+    voucher.include_bg(group_frames["group5_frame"], checkbox_var)
     submit_button = tk.Button(group_frames["group5_frame"], text="Print", font=font_settings, command=lambda: UI_support.submit(selection_var, cheque_vars, online_vars, selected_indx, checkbox_var))   # Submit Button
     submit_button.grid(row=2, column=2, padx=10, pady=10) 
     cancel_button = tk.Button(group_frames["group5_frame"], text="Cancel Receipt", font=font_settings, command=lambda: UI_support.cancel(selected_indx))   # Cancel Button
@@ -92,12 +93,7 @@ def add_group_4and5(frame, group_frames):
         #print(f"Selection is {selection_var.get()}")
         cheque_frame.grid() if selection_var.get() == "Cheque" else cheque_frame.grid_remove()
         online_frame.grid() if selection_var.get() == "EFT" else online_frame.grid_remove()
-    toggle_cheque_fields()   
-
-def include_bg(group_name, checkbox_var):
-    checkbox = tk.Checkbutton(group_name, text="Include background", bg="#99ccff", variable=checkbox_var, font=font_settings)
-    checkbox.grid(row=1, column=2, sticky="w")
-     
+    toggle_cheque_fields()       
 
 def draw_receipt(frame):
     dest_excel_path = UI_support.get_excel_file(selected_indx)
@@ -156,92 +152,12 @@ def draw_receipt(frame):
      
     add_group_4and5(frame, group_frames)
 
-def draw_debit_voucher(frame):
-    dv_entries = []
-    group_frames = {}
-
-    for i in range(3): 
-        row_offset = i * 6
-        receipt_frame = tk.LabelFrame(frame,  text=f"Voucher {i+1}", bg="#99ccff", font=font_settings_bold,
-        bd=2,                                               # Border width
-        relief="groove",                                    # Can be 'groove', 'ridge', 'sunken', 'raised', etc.
-        padx=5, pady=5
-        )
-        receipt_frame.grid(row=row_offset+1 , column=0, columnspan=2, padx=10, pady=10, sticky="ew")
-
-        tk.Label(receipt_frame, text="Receipt Date:", font=font_settings, bg="#99ccff").grid(row=2, column=0, sticky="e", padx=5, pady=5)
-        date_entry = DateEntry(receipt_frame, date_pattern="dd/mm/yyyy", width=12, background='darkblue', foreground='white', borderwidth=2)
-        date_entry.grid(row=2, column=1, padx=5, pady=5)
-
-        name_var = tk.StringVar()
-        tk.Label(receipt_frame, text="Pay to:", font=font_settings, bg="#99ccff").grid(row=3, column=0, sticky="e", padx=5, pady=5) 
-        name_entry = tk.Entry(receipt_frame, font=font_settings, textvariable=name_var)
-        limit = 200
-        name_var.trace_add("write", lambda *args, v=name_var, l=limit: UI_support.limit_chars(v, l))
-        name_entry.grid(row=3, column=1, padx=5, pady=5)
-
-        tk.Label(receipt_frame, text="Amount:", font=font_settings, bg="#99ccff").grid(row=4, column=0, sticky="e", padx=5, pady=5) 
-        amt_entry = tk.Entry(receipt_frame, font=font_settings, validate="key", validatecommand=(validate_number, "%S"))
-        amt_entry.grid(row=4, column=1, padx=5, pady=5)
-
-        tk.Label(receipt_frame, text="Purpose:", font=font_settings, bg="#99ccff").grid(row=5, column=0,sticky="e", padx=5, pady=5) 
-        purpose_entry = tk.Text(receipt_frame, font=font_settings, height=3, width=40)
-        purpose_entry.bind("<KeyRelease>", lambda event, e=purpose_entry: UI_support.limit_text_chars(event, e, 200))
-        purpose_entry.grid(row=5, column=1, padx=5, pady=5)
-
-        # Store all widget references in a dictionary
-        dv_data = {
-            'date': date_entry,
-            'pay_to': name_entry,
-            'amount': amt_entry,
-            'purpose': purpose_entry
-        }
-        dv_entries.append(dv_data)
-
-    print_frame = tk.LabelFrame(frame,  font=font_settings_bold, bg="#99ccff", bd=2, relief="groove", padx=10, pady=10 )
-    print_frame.grid(row=1 , column=2, columnspan=1, padx=15, pady=10, sticky="ew")
-    
-    include_bg(print_frame, checkbox_var)
-    submit_button = tk.Button(print_frame, text="Print", font=font_settings, command=lambda: UI_support.dv_print(dv_entries, selected_indx, checkbox_var))   # Submit Button
-    submit_button.grid(row=2, column=2, padx=10, pady=10) 
-
-    add_group_4and5(frame, group_frames)
-
-def draw_inv_voucher(frame):
-    for i in range(3):
-        # Create a LabelFrame for each receipt
-        receipt_frame = tk.LabelFrame(
-        frame,
-        text=f"Voucher {i + 1}",  # Title of the LabelFrame
-        font=font_settings_bold,
-        bg="#99ccff",
-        bd=2,             # Border width
-        relief="groove",  # Border style ('groove', 'sunken', etc.)
-        padx=10,          # Padding inside the frame (left and right)
-        pady=10           # Padding inside the frame (top and bottom)
-        )
-
-        # Place the LabelFrame in a unique row (using i * 7 to create a gap between each receipt)
-        receipt_frame.grid(row=i * 7, column=0, columnspan=2, padx=10, pady=10, sticky="ew")
-
-        # Inside the LabelFrame, create widgets for the receipt details
-        tk.Label(receipt_frame, text="Receipt Date:", font=font_settings, bg="#99ccff").grid(row=0, column=0, sticky="e", pady=5)
-        date_entry = DateEntry(receipt_frame, width=12, background='darkblue', foreground='white', borderwidth=2)
-        date_entry.grid(row=0, column=1, pady=5)
-
-        tk.Label(receipt_frame, text="Pay to:", font=font_settings, bg="#99ccff").grid(row=1, column=0, sticky="e", pady=5)
-        name_entry = tk.Entry(receipt_frame)
-        name_entry.grid(row=1, column=1, pady=5)
-
-        tk.Label(receipt_frame, text="Amount:", font=font_settings, bg="white") \
-            .grid(row=2, column=0, sticky="e", pady=5)
-        amount_entry = tk.Entry(receipt_frame)
-        amount_entry.grid(row=2, column=1, pady=5)
-
-        tk.Label(receipt_frame, text="Purpose:", font=font_settings, bg="white") \
-            .grid(row=3, column=0, sticky="e", pady=5)
-        purpose_entry = tk.Entry(receipt_frame)
-        purpose_entry.grid(row=3, column=1, pady=5)
+def load_mapping_from_excel(file_path, sheet_name="Sheet5"):
+    df = pd.read_excel(file_path, sheet_name=sheet_name)
+    df = df.dropna(subset=["Purchase Code"])  # Drop rows with no code
+    df = df.astype(str).apply(lambda x: x.str.strip())  # Clean whitespace and convert all to string
+    #data = 
+    return df.to_dict(orient="records")
 
 class App:
     def __init__(self, root):
@@ -256,7 +172,7 @@ class App:
 
         buttons = [
             ("Receipt", "Receipt"),
-            ("Debit Voucher", "Debit Voucher"),
+            ("Voucher", "Voucher"),
         ]
 
         # Step 1: Configure nav_frame columns to expand equally
@@ -285,8 +201,8 @@ class App:
 
     def build_page2(self):
         frame = tk.Frame(self.root,  bg="white")
-        draw_debit_voucher(frame)
-        self.frames["Debit Voucher"] = frame
+        voucher.draw_voucher(frame, selected_indx, root, checkbox_var)
+        self.frames["Voucher"] = frame
 
 # Run the app
 root = tk.Tk()
@@ -298,10 +214,19 @@ validate_number = root.register(lambda char: char.isdigit() or char == "")
 vcmd = (root.register(UI_support.validate_alpha), "%S", "%P")
 vcmd_branch =(root.register(UI_support.validate_alpha_branch), "%S", "%P")
 
-        
+selected_option = {}   
 selection_var = tk.StringVar(value="Cash")
 checkbox_var = tk.IntVar(value=0)
 selected_indx = int(sys.argv[2])
+
+# Variables
+purchase_code_var = tk.StringVar()
+purchase_head_var = tk.StringVar()
+purchase_category_var = tk.StringVar()
+expense_type_var = tk.StringVar()
+head_to_categories = {}
+head_to_expense_type = {}
+code_to_data = {} 
 
 app = App(root)
 root.mainloop()
