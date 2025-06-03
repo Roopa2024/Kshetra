@@ -8,6 +8,7 @@ from PyPDF2 import PdfReader, PdfWriter
 from reportlab.lib.utils import ImageReader
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import A4
+import UI_support
 
 # Load configurations
 config_path = os.path.join(os.path.dirname(__file__), "config", "receipt.ini")
@@ -263,22 +264,36 @@ def create_pdf_from_kwargs(kwargs, pdf_path, entity, with_bg, top_text, bottom_t
                     print("File not found on disk!")
     print(f"PDF saved: {pdf_path}")
 
-def create_pdf_from_kwargs_voucher(dv_entries, pdf_path, entity, with_bg, dest_excel_path):
+def create_pdf_from_kwargs_voucher(v_entries, pdf_path, entity, with_bg, dest_excel_path):
     packet = io.BytesIO()
     c = canvas.Canvas(packet, pagesize=A4)
     width, height = A4
     height = height - 56
+    cheque_date, cheque_no_val, cheque_IFSC, cheque_AC_no, eft_date, utrn_val = '', '','','','',''
     #x_offset = 90   
 
     c.setFont(font_name, font_size)  
-    for i, receipt in enumerate(dv_entries):
-        receipt_date = receipt['date'].get()
-        pay_to = receipt['pay_to'].get()
-        amount = receipt['amount'].get()
-        purpose = receipt['purpose'].get("1.0", tk.END).strip()
-        canvas_update_voucher.draw_receipt_date(c, i, receipt_date)
-        canvas_update_voucher.draw_voucher(c, i, amount, pay_to, purpose, dest_excel_path, pdf_path)
+    for i, voucher in enumerate(v_entries):
+        voucher_date = voucher['date'].get()
+        pay_to = voucher['pay_to'].get()
+        amount = voucher['amount'].get()
+        pan = voucher['pan'].get()
+        addr = voucher['addr'].get()
+        pur_code = voucher['pur_code'].get()
+        pur_head = voucher['pur_head'].get()
+        pur_cat = voucher['pur_cat'].get()
+        exp_type = voucher['exp_type'].get()
+        mode = voucher['payment_mode'].get()
+        
+        canvas_update_voucher.draw_voucher_date(c, i, voucher_date)
 
+        if mode == "Cheque":
+            cheque_date, cheque_no_val, cheque_IFSC, cheque_AC_no = UI_support.get_cheque_data(voucher)
+        elif mode == "EFT":
+            eft_date, utrn_val = UI_support.get_eft_data(voucher)
+        
+        canvas_update_voucher.draw_voucher(c, i, amount, pay_to, pan, addr, pur_code, pur_head, pur_cat, exp_type, mode, cheque_date, cheque_no_val, cheque_IFSC, cheque_AC_no, eft_date, utrn_val, dest_excel_path, pdf_path)
+        
     # Save PDF
     c.showPage()
     c.save()
@@ -305,6 +320,8 @@ def create_pdf_from_kwargs_voucher(dv_entries, pdf_path, entity, with_bg, dest_e
                 os.startfile(absolute_path)
             else:
                 print("File not found on disk!")
+            duplicate_pdf_path_acct = os.path.join("Accountant_copy", entity_name, pdf_name)
+            merge_pdf(entity, new_pdf, duplicate_pdf_path_acct)
         elif with_bg == 1:                                               # print without background
             merge_pdf(entity, new_pdf, pdf_path)
             generate_duplicates(pdf_path, entity)
