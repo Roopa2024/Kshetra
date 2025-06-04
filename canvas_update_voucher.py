@@ -27,43 +27,6 @@ font_size = config.getint('FontSettings', 'font_size')
 width, height = A4
 height = height - 56
 x_offset = 90
-x_receipt_date = config.getint('voucher_dimensions', 'x_receipt_date')
-y_top_receipt_date = config.get('voucher_dimensions', 'y_top_receipt_date')
-y_middle_receipt_date = config.get('voucher_dimensions', 'y_middle_receipt_date')
-y_bottom_receipt_date = config.get('voucher_dimensions', 'y_bottom_receipt_date')
-
-x_amount = config.getint('voucher_dimensions', 'x_amount')
-y_top_amount = config.get('voucher_dimensions', 'y_top_amount')
-y_middle_amount = config.get('voucher_dimensions', 'y_middle_amount')
-y_bottom_amount = config.get('voucher_dimensions', 'y_bottom_amount')
-
-x_amount_in_words = config.getint('voucher_dimensions', 'x_amount_in_words')
-y_top_amount_in_words = config.get('voucher_dimensions', 'y_top_amount_in_words')
-y_middle_amount_in_words = config.get('voucher_dimensions', 'y_middle_amount_in_words')
-y_bottom_amount_in_words = config.get('voucher_dimensions', 'y_bottom_amount_in_words')
-line_width = config.getint('voucher_dimensions', 'line_width')
-
-x_payto_purpose = config.getint('voucher_dimensions', 'x_payto_purpose')
-y_top_payto = config.get('voucher_dimensions', 'y_top_payto')
-y_middle_payto = config.get('voucher_dimensions', 'y_middle_payto')
-y_bottom_payto = config.get('voucher_dimensions', 'y_bottom_payto')
-
-y_top_purpose = config.get('voucher_dimensions', 'y_top_purpose')
-y_middle_purpose = config.get('voucher_dimensions', 'y_middle_purpose')
-y_bottom_purpose = config.get('voucher_dimensions', 'y_bottom_purpose')
-
-x_qrcode = config.getint('voucher_dimensions', 'x_qrcode')
-x_qrcode_DN_DPS = config.getint('voucher_dimensions', 'x_qrcode_DN_DPS')
-x_qrcode_SGPT = config.getint('voucher_dimensions', 'x_qrcode_SGPT')
-y_start_qrcode = config.get('voucher_dimensions', 'y_start_qrcode')
-qrcode_width = config.getint('voucher_dimensions', 'qrcode_width')
-qrcode_height = config.getint('voucher_dimensions', 'qrcode_height')
-y_offset = config.getint('voucher_dimensions', 'y_offset')
-
-x_barcode = config.getint('voucher_dimensions', 'x_barcode')
-y_start_barcode = config.get('voucher_dimensions', 'y_start_barcode')
-barcode_width = config.getint('voucher_dimensions', 'barcode_width')
-barcode_height = config.getint('voucher_dimensions', 'barcode_height')
 
 # Converting date to the desired format
 def get_date_format(c, value):
@@ -76,12 +39,13 @@ def get_date_format(c, value):
 def draw_receipt_date(c, i, value):
     formatted_date = get_date_format(c, value)
     c.setFont(font_name, font_size) 
+    x, y = (435, height - 10)
     if i == 0:
-        c.drawString(x_receipt_date, eval(y_top_receipt_date), "    ".join(formatted_date) )
+        c.drawString(x, y, "    ".join(formatted_date) )
     elif i == 1:
-        c.drawString(x_receipt_date, eval(y_middle_receipt_date), "    ".join(formatted_date) )
+        c.drawString(x, height - 290, "    ".join(formatted_date) )
     elif i == 2:
-        c.drawString(x_receipt_date, eval(y_bottom_receipt_date), "    ".join(formatted_date) )
+        c.drawString(x, height - 570, "    ".join(formatted_date) )
     #c.setFont(font_name, font_size) 
 
 def print_amount(c, locale_value, x1, x2, y1, y2, in_words, line_width):
@@ -97,20 +61,23 @@ def draw_voucher(c, i, value, pay_to, purpose, dest_excel_path, pdf_path):
         locale_value = locale.format_string("%d", int(value), grouping=True)
     else:
         locale_value = ""
-
+    x1 = x_offset - 15
+    x2 = x_offset + 70
+    x3 = x_offset + 20
+    line_width = 420
     in_words = canvas_update.convert_to_words(value)
     if i == 0:
-        print_amount(c, locale_value, x_amount, x_amount_in_words, eval(y_top_amount), eval(y_top_amount_in_words), in_words, line_width)
-        canvas_update.wrap_text(c, f"{pay_to}", x_payto_purpose, eval(y_top_payto), line_width, font_name, font_size, 0)
-        canvas_update.wrap_text(c, f"{purpose}", x_payto_purpose, eval(y_top_purpose), line_width, font_name, font_size, 0)
+        print_amount(c, locale_value, x1, x2, height - 190, height - 70, in_words, line_width)
+        canvas_update.wrap_text(c, f"{pay_to}", x3, height - 30, line_width, font_name, font_size, 0)
+        canvas_update.wrap_text(c, f"{purpose}", x3, height - 110, line_width, font_name, font_size, 0)
     elif i == 1:
-        print_amount(c, locale_value, x_amount, x_amount_in_words, eval(y_middle_amount), eval(y_middle_amount_in_words), in_words, line_width)
-        canvas_update.wrap_text(c, f"{pay_to}", x_payto_purpose, eval(y_middle_payto), line_width, font_name, font_size, 0)
-        canvas_update.wrap_text(c, f"{purpose}", x_payto_purpose, eval(y_middle_purpose), line_width, font_name, font_size, 0)
+        print_amount(c, locale_value, x1, x2, height - 470, height - 350, in_words, line_width)
+        canvas_update.wrap_text(c, f"{pay_to}", x3, height - 310, line_width, font_name, font_size, 0)
+        canvas_update.wrap_text(c, f"{purpose}", x3, height - 390, line_width, font_name, font_size, 0)
     elif i == 2:
-        print_amount(c, locale_value, x_amount, x_amount_in_words, eval(y_bottom_amount), eval(y_bottom_amount_in_words), in_words, line_width)
-        canvas_update.wrap_text(c, f"{pay_to}", x_payto_purpose, eval(y_bottom_payto), line_width, font_name, font_size, 0)
-        canvas_update.wrap_text(c, f"{purpose}", x_payto_purpose, eval(y_bottom_purpose), line_width, font_name, font_size, 0)
+        print_amount(c, locale_value, x1, x2, height - 750, height - 632, in_words, line_width)
+        canvas_update.wrap_text(c, f"{pay_to}", x3, height - 590, line_width, font_name, font_size, 0)
+        canvas_update.wrap_text(c, f"{purpose}", x3, height - 672, line_width, font_name, font_size, 0)
     
     draw_code(c, dest_excel_path)
 
@@ -149,31 +116,29 @@ def draw_code(c, dest_excel_path):
     # Find all rows where at least a barcode or QR code exists
     all_rows = sorted(set(barcode_images.keys()) | set(qrcode_images.keys()))
     last_rows = all_rows[-3:]  # Get last 3 rows with image(s)
-    #x_barcode, x_qrcode = 430, 379 #350
+    x_barcode, x_qrcode = 430, 379 #350
     if 'SGPM_DN' in dest_excel_path or 'SPK_DPS' in dest_excel_path:
-        x_qrcode_updated = x_qrcode_DN_DPS
+        x_qrcode = 350
     elif 'SGPT' in dest_excel_path:
-        x_qrcode_updated = x_qrcode_SGPT
-    else:
-        x_qrcode_updated = x_qrcode
-    #start_y_barcode, start_y_qrcode, y_offset = height+5, height-15, 282
+        x_qrcode = 365
+    start_y_barcode, start_y_qrcode, y_offset = height+5, height-15, 282
     
     # Draw images row-wise
     for i, row in enumerate(last_rows):
-        y_barcode = eval(y_start_barcode) - i * y_offset
-        y_qrcode = eval(y_start_qrcode) - i * y_offset
+        y_barcode = start_y_barcode - i * y_offset
+        y_qrcode = start_y_qrcode - i * y_offset
 
         # Barcode
         if row in barcode_images:
             img_data = barcode_images[row]._data()
             pil_img = Image.open(BytesIO(img_data))
             pil_img.save(f"temp_barcode_{row}.png")
-            c.drawImage(f"temp_barcode_{row}.png", x_barcode, y_barcode, width=barcode_width, height=barcode_height)
+            c.drawImage(f"temp_barcode_{row}.png", x_barcode, y_barcode, width=150, height=40)
             os.remove(f"temp_barcode_{row}.png")
         # QRCode
         if row in qrcode_images:
             img_data = qrcode_images[row]._data()
             pil_img = Image.open(BytesIO(img_data))
             pil_img.save(f"temp_qrcode_{row}.png")
-            c.drawImage(f"temp_qrcode_{row}.png", x_qrcode_updated, y_qrcode, width=qrcode_width, height=qrcode_height) #width=70, height=70)
+            c.drawImage(f"temp_qrcode_{row}.png", x_qrcode, y_qrcode, width=55, height=65) #width=70, height=70)
             os.remove(f"temp_qrcode_{row}.png")
