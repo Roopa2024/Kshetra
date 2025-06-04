@@ -1,7 +1,10 @@
+
 from tkinter import messagebox
 import pandas as pd
 from openpyxl import load_workbook, Workbook
 from openpyxl.drawing.image import Image
+from openpyxl.styles import PatternFill
+from openpyxl.styles import Font
 import os, configparser, io
 import barcode, qrcode
 from barcode.writer import ImageWriter
@@ -153,3 +156,27 @@ def generate_qr_code(row_data, qr_path="temp_qr.png"):
     img = qr.make_image(fill="black", back_color="white")               # Create an image from the QR Code
     img.save(qr_path)                                                   # Save QR Code
     return qr_path
+
+def cancel_last_row(excel_path):
+    wb = load_workbook(excel_path)
+    ws = wb.active
+
+    header = [cell.value for cell in ws[1]]                             # Find the header row and column index of "Globe stat"
+    try:
+        col_index = header.index("Globe Stat.") + 1                     # openpyxl is 1-indexed
+    except ValueError:
+        raise Exception("Column 'Globe stat' not found")
+
+    # Get the last row and update the cell
+    last_row = ws.max_row
+    ws.cell(row=last_row, column=col_index, value="cancelled")
+
+    yellow_fill = PatternFill(start_color="FFFF00", end_color="FFFF00", fill_type="solid")
+    for cell in ws[ws.max_row]:                         # Highlight each cell in the last row
+        cell.fill = yellow_fill
+
+    strike_font = Font(strike=True)
+    for cell in ws[ws.max_row]:                         # Apply strikethrough to each cell in the last row
+        cell.font = strike_font
+    # Save changes
+    wb.save(excel_path)
