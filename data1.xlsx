@@ -1,0 +1,2 @@
+Make sure that the last column in the excel is named "QR Code".
+This is where the generated QRCode will be saved.
