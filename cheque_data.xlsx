@@ -1,0 +1,2 @@
+Database for cheque info entered from the UI, in the format,
+ExpenseType	globe_id	globe_stat	Payee	Amount	Date	Bank	Purpose	Narration	Cheque #	IFSC code	Biller name	Invoice #	GST/PAN	Payee Name	Bank Name	Branch Name	Payee IFSC	Digital Sign	Expense Type	Department	Designation	Service Code	Code	Description
