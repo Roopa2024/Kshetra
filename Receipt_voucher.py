@@ -13,7 +13,7 @@ config.read(config_path)
 font_settings = (config.get('FontSettings', 'font_name'), config.getint('FontSettings', 'font_size'))
 font_settings_bold = (config.get('FontSettings', 'font_name'), config.getint('FontSettings', 'font_size'), "bold")
 mapping = config.get('Filenames', 'mapping_sheet')
-dv_entity_xcl = config.get('Filenames', 'dv_input_files')
+dv_entity_xcl = config.get('Filenames', 'voucher_input_files')
 dv_entity_xcls = dv_entity_xcl.split(',')
 
 def add_group_4and5(frame, group_frames):
@@ -39,7 +39,7 @@ def add_group_4and5(frame, group_frames):
 
     tk.Label(cheque_frame, text="Cheque Details", font=font_settings_bold, bg="#99ccff").grid(row=0, column=0, columnspan=2, pady=10)
     cheque_fields = [
-        ("Cheque Date:", DateEntry, {"date_pattern": "dd/mm/yyyy"}),
+        ("Cheque Date:", DateEntry, {"date_pattern": "dd/mm/yyyy", "state": "readonly"}),
         ("Cheque No.:", tk.Entry, {"textvariable": tk.StringVar(), "validate": "key", "validatecommand": (validate_number, "%P")}),
         ("IFSC Code:", tk.Entry, {"textvariable": tk.StringVar()}),
         ("Account No.:", tk.Entry, {"textvariable": tk.StringVar()}),
@@ -47,7 +47,7 @@ def add_group_4and5(frame, group_frames):
     #underline_font = tkFont.Font(family=(config.get('FontSettings', 'font_name')), size=config.getint('FontSettings', 'font_size'), weight="bold", underline=1)
     tk.Label(online_frame, text="EFT", font=font_settings_bold, bg="#99ccff").grid(row=0, column=0,columnspan=2, pady=10)
     online_fields = [
-        ("Bank Date:", DateEntry, {"date_pattern": "dd/mm/yyyy"}),
+        ("Bank Date:", DateEntry, {"date_pattern": "dd/mm/yyyy", "state": "readonly"}),
         ("UTRN:", tk.Entry, {"textvariable": tk.StringVar()}),
         ("Bank name:", tk.Entry, {"validate": "key", "validatecommand": vcmd}),
         ("Branch:", tk.Entry, {"validate": "key", "validatecommand": vcmd_branch}),
@@ -206,7 +206,6 @@ class App:
 
 # Run the app
 root = tk.Tk()
-
 root.geometry(f"{root.winfo_screenwidth()}x{root.winfo_screenheight()}")        #set the App to window size
 
 # Validation functions
