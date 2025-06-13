@@ -1,3 +1,34 @@
+
+*Changes included in the Release v3.0:*
+DebitVoucher_xxx.pdf files in "Images" folder have been replaced with Voucher_xxx.pdf
+--> receipt.ini ONLY
+
+XXX_dv_data.xlsx files in "Images" folder have been replaced with XXX_voucher_data.xlsx
+--> receipt.ini
+--> script changes as well.
+
+Voucher dropdown list adjusted to max length of options in list
+--> voucher.py
+
+Added additional user access
+--> receipt.ini
+
+Added User-Login-Name for Receipt and Voucher in the PDF and an additional column named, "Authoriser" in the excel
+--> receipt.ini, pdf_data.py, canvas_update_voucher.py, UI_support.py
+
+Added Print date to voucher
+--> receipt.ini, canvas_update_voucher.py, pdf_data.py, UI_support.py
+
+Made the Date widget readonly
+--> Receipt_voucher.py, voucher.py and UI_support.py
+
+
+
+python .\Receipt_voucher.py SGPM_DN 0
+python .\Receipt_voucher.py SPK_DPS 1
+python .\Receipt_voucher.py SGPT 2 
+python .\Receipt_voucher.py SPT 3  
+
 Commands to create an EXE:
 PS C:\Users\RoopaHegde\OneDrive\Documents\Kshetra\HP_printer\Code_Accounting_SW_Rel2.0_Receipt_Voucher> python -m PyInstaller --add-data="config/receipt.ini:config" 
 --add-data="config/RobotoMono-Regular.ttf:config" --add-data="Images/SPT.pdf:Images"  --add-data="Images/SGPM_DN.pdf:Images"  --add-data="Images/SPK_DPS.pdf:Images" 
