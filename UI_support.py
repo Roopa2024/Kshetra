@@ -1,5 +1,5 @@
 import tkinter as tk
-import openpyxl, os, sys, shutil, configparser
+import openpyxl, os, sys, shutil, configparser, getpass
 import canvas_update, excel_data, pdf_data
 import datetime
 from datetime import date
@@ -15,7 +15,7 @@ config.read(config_path)
 
 font_settings = (config.get('FontSettings', 'font_name'), config.getint('FontSettings', 'font_size'))
 entity_xcl = config.get('Filenames', 'input_files')
-dv_entity_xcl = config.get('Filenames', 'dv_input_files')
+dv_entity_xcl = config.get('Filenames', 'voucher_input_files')
 mapping = config.get('Filenames', 'mapping_sheet')
 entity_xcls = entity_xcl.split(',')
 dv_entity_xcls = dv_entity_xcl.split(',')
@@ -113,6 +113,7 @@ input_vars = {}                                                                 
 # Function to add widgets dynamically to each group
 def add_widgets_to_group(frame, fields):
     amount_in_words_var = tk.StringVar()
+
     for i, (label, widget, field_options) in enumerate(fields):
         #For the heading "Contribution"
         if label == "__HEADER__":
@@ -138,7 +139,7 @@ def add_widgets_to_group(frame, fields):
             else:
                 raise ValueError(f"OptionMenu requires both 'variable' and 'options' in field_options. Missing for '{label}'")
         elif label == 'Receipt Date:':
-            entry = widget(frame, font=font_settings, width=25, **field_options)
+            entry = widget(frame, font=font_settings, width=25, **field_options, state="readonly")
         elif widget == tk.Text:
             entry = widget(frame, font=font_settings, height=field_options.get("height"), width=40)
             entry.config(wrap="word")  # Set wrap here
@@ -268,6 +269,9 @@ def clear_voucher_fields(voucher):
     except Exception as e:
         print(f"Error clearing cheque fields: {e}")
 
+def get_user():
+    authoriser = getpass.getuser()
+    return authoriser
 
 def voucher_print(voucher_entries, selected_indx, checkbox_var):
     cheque_date, cheque_no_val, cheque_IFSC, cheque_AC_no, eft_date, utrn_val = '', '', '', '','',''
@@ -318,7 +322,7 @@ def voucher_print(voucher_entries, selected_indx, checkbox_var):
         id, globe_id, bar_text = excel_data.increment_counter(selected_indx, dest_excel_path) 
         date = datetime.datetime.now()
         formatted_date = date.strftime("%d/%m/%Y %H.%M.%S")
-
+        
         barcode_path = excel_data.generate_barcode(str(globe_id))   #barcode is temporarily saved in the current dir
         excel_data.draw_text(f"{barcode_path}.png", bar_text) 
 
@@ -343,6 +347,7 @@ def voucher_print(voucher_entries, selected_indx, checkbox_var):
             'EFT Date': eft_date,
             'UTRN': utrn_val,
             'Print Date' : formatted_date,
+            'Authoriser' : get_user(),
             'Globe Id.' : globe_id,
             'TextColumn' : bar_text,
             'Barcode' : f"{barcode_path}.png",
@@ -352,7 +357,7 @@ def voucher_print(voucher_entries, selected_indx, checkbox_var):
         excel_data.save_to_excel(dest_excel_path, id, **kwargs)
         
     pdf_path = f"pdfs/{entity_name}/{kwargs['Id.']}.pdf"
-    pdf_data.create_pdf_from_kwargs_voucher(voucher_entries, pdf_path, dv_entity[selected_indx], checkbox_var.get(), dest_excel_path)
+    pdf_data.create_pdf_from_kwargs_voucher(kwargs, voucher_entries, pdf_path, dv_entity[selected_indx], checkbox_var.get(), dest_excel_path)
     for i, voucher in enumerate(voucher_entries):
         clear_voucher_fields(voucher)
 
@@ -429,7 +434,7 @@ def submit(selection_var, cheque_vars, online_vars, selected_indx, checkbox_var)
     id, globe_id, bar_text = excel_data.increment_counter(selected_indx, dest_excel_path) 
     date = datetime.datetime.now()
     formatted_date = date.strftime("%d/%m/%Y %H.%M.%S")
-
+    authoriser = getpass.getuser()
     barcode_path = excel_data.generate_barcode(str(globe_id))   #barcode is temporarily saved in the current dir
     excel_data.draw_text(f"{barcode_path}.png", bar_text)       #adding TextColumn to the barcode
 
@@ -454,6 +459,7 @@ def submit(selection_var, cheque_vars, online_vars, selected_indx, checkbox_var)
         'Bank Name' : bank_name, 
         'Branch Name' : bank_br, 
         'Print Date' : formatted_date,
+        'Authoriser' : authoriser,
         'Globe Id.' : globe_id,
         'TextColumn' : bar_text,
         'Barcode' : f"{barcode_path}.png",
@@ -463,7 +469,6 @@ def submit(selection_var, cheque_vars, online_vars, selected_indx, checkbox_var)
     excel_data.save_to_excel(dest_excel_path, id, **kwargs)
 
     qr_code_path = excel_data.generate_qr_code(kwargs)
-    print(f"PATH for QR is {qr_code_path}")
     kwargs["QR Code"] = qr_code_path       
     entity_name = os.path.splitext(entity[selected_indx])[0]                        # Update kwargs with QR Code path
     pdf_path = f"pdfs/{entity_name}/{kwargs['Id.']}.pdf"
