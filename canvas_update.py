@@ -285,7 +285,7 @@ def draw_acct_no(c, value, receipt):
 # Function to draw Copy Type vertically on the RHS of receipt 
 def draw_copy_type(c, y, text):
     c.saveState()
-    c.translate(width - 15, y)                          # Move to top half center
+    c.translate(width - 14, y)                          # Move to top half center
     c.rotate(90)                                        # Rotate vertically
     c.drawString(0, 0, text)                       
     c.restoreState()
