@@ -65,6 +65,15 @@ y_start_barcode = config.get('voucher_dimensions', 'y_start_barcode')
 barcode_width = config.getint('voucher_dimensions', 'barcode_width')
 barcode_height = config.getint('voucher_dimensions', 'barcode_height')
 
+x_authoriser = config.getint('voucher_dimensions', 'x_authoriser')
+y_top_authoriser = config.get('voucher_dimensions', 'y_top_authoriser')
+y_middle_authoriser = config.get('voucher_dimensions', 'y_middle_authoriser')
+y_bottom_authoriser = config.get('voucher_dimensions', 'y_bottom_authoriser')
+
+y_top_print_date = config.get('voucher_dimensions', 'y_top_print_date')
+y_middle_print_date = config.get('voucher_dimensions', 'y_middle_print_date')
+y_bottom_print_date = config.get('voucher_dimensions', 'y_bottom_print_date')
+
 # Converting date to the desired format
 def get_date_format(c, value):
     date_obj = datetime.strptime(value, "%d/%m/%Y") 
@@ -76,6 +85,7 @@ def get_date_format(c, value):
 def draw_voucher_date(c, i, value):
     formatted_date = get_date_format(c, value)
     c.setFont(font_name, font_size) 
+
     if i == 0:
         c.drawString(x_v_date, eval(y_top_v_date), "    ".join(formatted_date) )
     elif i == 1:
@@ -133,8 +143,15 @@ def convert_to_words(amount):
         result = f"{capitalized_number} RUPEES"
     return result
 
+def draw_print_date(c, y, value):
+    c.setFont(copy_font_name, 8)  # Set font and size
+    c.setFillColorRGB(0.5, 0.5, 0.5) 
+    canvas_update.draw_copy_type(c, y, value)
+    c.setFont(font_name, font_size)
+    return
+
 # Function to draw amount in numbers and amount in words
-def draw_voucher(c, i, value, pay_to, pan, addr, pur_code, pur_head, pur_cat, exp_type, mode, cheque_date, cheque_no_val, cheque_IFSC, cheque_AC_no, eft_date, utrn_val, dest_excel_path, pdf_path):
+def draw_voucher(c, i, value, pay_to, pan, addr, pur_code, pur_head, pur_cat, exp_type, mode, cheque_date, cheque_no_val, cheque_IFSC, cheque_AC_no, eft_date, utrn_val, dest_excel_path, pdf_path, user, print_date):
     c.setFont(font_name, font_size)
     locale.setlocale(locale.LC_ALL, 'en_IN')
     if value:
@@ -170,14 +187,23 @@ def draw_voucher(c, i, value, pay_to, pan, addr, pur_code, pur_head, pur_cat, ex
         print_amount_ac(c, locale_value, x_amount, x_amount_in_words, eval(y_top_amount), eval(y_top_amount_in_words), combined_amount_ac, line_width)
         wrap_text_voucher(c, f"{combined_payto}", x_payto_pan, eval(y_top_payto), line_width, font_name, font_size, 0)
         wrap_text_voucher(c, f"{combined_purchase}", x_payto_pan, eval(y_top_pan), line_width, font_name, font_size, 0)
+        draw_print_date(c, eval(y_top_print_date), print_date)
+        c.drawString(x_authoriser, eval(y_top_authoriser), f"{user}")
+        c.setFillColorRGB(0, 0, 0) 
     elif i == 1:
         print_amount_ac(c, locale_value, x_amount, x_amount_in_words, eval(y_middle_amount), eval(y_middle_amount_in_words), combined_amount_ac, line_width)
         wrap_text_voucher(c, f"{combined_payto}", x_payto_pan, eval(y_middle_payto), line_width, font_name, font_size, 0)
         wrap_text_voucher(c, f"{combined_purchase}", x_payto_pan, eval(y_middle_pan), line_width, font_name, font_size, 0)
+        draw_print_date(c, eval(y_middle_print_date), print_date)
+        c.drawString(x_authoriser, eval(y_middle_authoriser), f"{user}")
+        c.setFillColorRGB(0, 0, 0) 
     elif i == 2:
         print_amount_ac(c, locale_value, x_amount, x_amount_in_words, eval(y_bottom_amount), eval(y_bottom_amount_in_words), combined_amount_ac, line_width)
         wrap_text_voucher(c, f"{combined_payto}", x_payto_pan, eval(y_bottom_payto), line_width, font_name, font_size, 0)
         wrap_text_voucher(c, f"{combined_purchase}", x_payto_pan, eval(y_bottom_pan), line_width, font_name, font_size, 0)
+        draw_print_date(c, eval(y_bottom_print_date), print_date)
+        c.drawString(x_authoriser, eval(y_bottom_authoriser), f"{user}")
+        c.setFillColorRGB(0, 0, 0) 
     
     draw_code(c, dest_excel_path)
     return True
