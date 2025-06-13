@@ -1,7 +1,8 @@
 import tkinter as tk
 from tkinter import ttk
 from tkcalendar import DateEntry
-import os, configparser, sys
+import tkinter.font as tkfont
+import os, configparser
 import pandas as pd
 import UI_support
 
@@ -11,7 +12,7 @@ config = configparser.ConfigParser()
 config.read(config_path)
 font_settings = (config.get('FontSettings', 'font_name'), config.getint('FontSettings', 'font_size'))
 font_settings_bold = (config.get('FontSettings', 'font_name'), config.getint('FontSettings', 'font_size'), "bold")
-dv_entity_xcl = config.get('Filenames', 'dv_input_files')
+dv_entity_xcl = config.get('Filenames', 'voucher_input_files')
 dv_entity_xcls = dv_entity_xcl.split(',')
 
 selected_option = {}   
@@ -193,7 +194,7 @@ def add_group_voucher(frame, group_frames, frame_name_options, frame_name_hidden
 
     tk.Label(cheque_frame, text="Cheque Details", font=font_settings_bold, bg="#99ccff").grid(row=0, column=0, columnspan=2, pady=5)
     cheque_fields = [
-        ("Cheque Date:", DateEntry, {"date_pattern": "dd/mm/yyyy"}),
+        ("Cheque Date:", DateEntry, {"date_pattern": "dd/mm/yyyy", "state": "readonly"}),
         ("Cheque No.:", tk.Entry, {"textvariable": tk.StringVar(), "validate": "key", "validatecommand": (validate_number, "%P")}),
         ("IFSC Code:", tk.Entry, {"textvariable": tk.StringVar()}),
         ("Account No.:", tk.Entry, {"textvariable": tk.StringVar()}),
@@ -201,7 +202,7 @@ def add_group_voucher(frame, group_frames, frame_name_options, frame_name_hidden
     #underline_font = tkFont.Font(family=(config.get('FontSettings', 'font_name')), size=config.getint('FontSettings', 'font_size'), weight="bold", underline=1)
     tk.Label(online_frame, text="EFT", font=font_settings_bold, bg="#99ccff").grid(row=0, column=0,columnspan=2, pady=10)
     online_fields = [
-        ("Bank Date:", DateEntry, {"date_pattern": "dd/mm/yyyy"}),
+        ("Bank Date:", DateEntry, {"date_pattern": "dd/mm/yyyy", "state": "readonly"}),
         ("UTRN:", tk.Entry, {"textvariable": tk.StringVar()}),
     ]
 
@@ -271,6 +272,25 @@ def validate_number_with_button(char, new_value, submit_btn):
     submit_btn.config(state="normal" if new_value else "disabled")
     return True
 
+def adjust_dropdown_width(event):
+    combo = event.widget
+    style = ttk.Style()
+
+    # Get the longest item in the combobox values
+    longest_item = max(combo['values'], key=len)
+
+    # Calculate the width of the longest item
+    font = tkfont.nametofont(str(combo.cget('font')))
+    width = font.measure(longest_item + " ")
+
+    # Configure the style to set the dropdown width
+    style.configure('TCombobox', postoffset=(0, 0, width, 0))
+    combo.configure(style='TCombobox')
+
+import tkinter as tk
+from tkinter import ttk
+from tktooltip import ToolTip
+
 def draw_voucher(frame, selected_indx, root, checkbox_var):
     voucher_entries = []
     group_frames = {}
@@ -294,7 +314,7 @@ def draw_voucher(frame, selected_indx, root, checkbox_var):
         name_entry.grid(row=2, column=1, sticky="w", padx=5, pady=5)
 
         tk.Label(receipt_frame, text="Voucher Date:", font=font_settings, bg="#99ccff").grid(row=2, column=2, sticky="w", padx=5, pady=5)
-        date_entry = DateEntry(receipt_frame, date_pattern="dd/mm/yyyy", width=10, background='darkblue', foreground='white', borderwidth=2)
+        date_entry = DateEntry(receipt_frame, date_pattern="dd/mm/yyyy", width=10, background='darkblue', foreground='white', borderwidth=2, state="readonly")
         date_entry.grid(row=2, column=3, sticky="w", padx=5, pady=5)
 
         tk.Label(receipt_frame, text="Amount:", font=font_settings, bg="#99ccff").grid(row=3, column=0, sticky="w", padx=5, pady=5) 
@@ -347,13 +367,13 @@ def draw_voucher(frame, selected_indx, root, checkbox_var):
             head_to_expense_type = expense_types
             head_cb['values'] = [''] + heads  # Add an empty string at the beginning to set blank as default
             head_cb.set('') 
+            head_cb.bind('<Configure>', adjust_dropdown_width)
             on_head_selected(head_cb, category_cb, expense_entry, purchase_code_var)
             head_cb.bind("<<ComboboxSelected>>", lambda e, hcb=head_cb, ccb=category_cb, eentry=expense_entry, pcode=purchase_code_var: 
                          on_head_selected(hcb, ccb, eentry, pcode))
         except Exception as e:
             print(f"Error: {e}")
     
-        
         code_cb.bind("<<ComboboxSelected>>", lambda e, ccb=code_cb, hcb=head_cb, catcb=category_cb, eentry=expense_entry, c2d=code_to_data:
                 on_code_selected(ccb, hcb, catcb, eentry, c2d))
         category_cb.bind("<<ComboboxSelected>>", lambda e, catcb=category_cb, hcb=head_cb, codecb=code_cb: on_category_selected(catcb, hcb, codecb))
@@ -387,6 +407,7 @@ def draw_voucher(frame, selected_indx, root, checkbox_var):
         voucher_entries.append(voucher_data)
         #print (f"Data is {voucher_data}")
         add_group_voucher(frame, group_frames, frame_name_options, frame_name_hidden, i, selected_option, voucher_data, validate_number)
+        
 
     print_frame = tk.LabelFrame(frame,  font=font_settings_bold, bg="#99ccff", bd=2, relief="groove", padx=10, pady=10 )
     print_frame.grid(row=1, column=5, rowspan=1, padx=15, pady=10, sticky="ew")
@@ -406,7 +427,7 @@ def draw_inv_voucher(frame):
 
         # Inside the LabelFrame, create widgets for the receipt details
         tk.Label(receipt_frame, text="Voucher Date:", font=font_settings, bg="#99ccff").grid(row=0, column=0, sticky="w", pady=5)
-        date_entry = DateEntry(receipt_frame, width=12, background='darkblue', foreground='white', borderwidth=2)
+        date_entry = DateEntry(receipt_frame, width=12, background='darkblue', foreground='white', borderwidth=2, state="readonly")
         date_entry.grid(row=0, column=1, pady=5)
 
         tk.Label(receipt_frame, text="Pay to:", font=font_settings, bg="#99ccff").grid(row=1, column=0, sticky="e", pady=5)
@@ -420,4 +441,3 @@ def draw_inv_voucher(frame):
         tk.Label(receipt_frame, text="Purpose:", font=font_settings, bg="white").grid(row=3, column=0, sticky="w", pady=5)
         purpose_entry = tk.Entry(receipt_frame)
         purpose_entry.grid(row=3, column=1, pady=5)
-
