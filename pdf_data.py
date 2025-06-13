@@ -62,6 +62,7 @@ y_branch_name = config.get('top_dimensions', 'y_branch_name')
 y_top_print_date = config.get('top_dimensions', 'y_print_date')
 y_bottom_print_date = config.getint('bottom_dimensions', 'y_print_date')
 
+x_authoriser = config.getint('top_dimensions', 'x_receipt_date')
 x_top_qrcode = config.getint('top_dimensions', 'x_qrcode')
 y_top_qrcode = config.get('top_dimensions', 'y_qrcode')
 x_bottom_qrcode = config.getint('bottom_dimensions', 'x_qrcode')
@@ -189,6 +190,10 @@ def create_pdf_from_kwargs(kwargs, pdf_path, entity, with_bg, top_text, bottom_t
                     canvas_update.draw_copy_type(c, y_bottom_print_date, value)
                     c.setFont(font_name, font_size)
                     #c.drawString(475, 5, f"{value}")
+                case 'Authoriser':
+                    if receipt:
+                        c.drawString(x_authoriser, y_top_barcode_receipt, f"{value}")
+                    c.drawString(x_authoriser, y_bottom_barcode_receipt, f"{value}")
 
     # Insert QR Code
     if kwargs.get("QR Code"):
@@ -264,15 +269,18 @@ def create_pdf_from_kwargs(kwargs, pdf_path, entity, with_bg, top_text, bottom_t
                     print("File not found on disk!")
     print(f"PDF saved: {pdf_path}")
 
-def create_pdf_from_kwargs_voucher(v_entries, pdf_path, entity, with_bg, dest_excel_path):
+def create_pdf_from_kwargs_voucher(kwargs, v_entries, pdf_path, entity, with_bg, dest_excel_path):
     packet = io.BytesIO()
     c = canvas.Canvas(packet, pagesize=A4)
     width, height = A4
     height = height - 56
     cheque_date, cheque_no_val, cheque_IFSC, cheque_AC_no, eft_date, utrn_val = '', '','','','',''
-    #x_offset = 90   
+    user = UI_support.get_user()
 
     c.setFont(font_name, font_size)  
+    print_date = kwargs.get('Print Date', '')
+    user = kwargs.get('Authoriser', '')
+
     for i, voucher in enumerate(v_entries):
         voucher_date = voucher['date'].get()
         pay_to = voucher['pay_to'].get()
@@ -292,8 +300,8 @@ def create_pdf_from_kwargs_voucher(v_entries, pdf_path, entity, with_bg, dest_ex
         elif mode == "EFT":
             eft_date, utrn_val = UI_support.get_eft_data(voucher)
         
-        canvas_update_voucher.draw_voucher(c, i, amount, pay_to, pan, addr, pur_code, pur_head, pur_cat, exp_type, mode, cheque_date, cheque_no_val, cheque_IFSC, cheque_AC_no, eft_date, utrn_val, dest_excel_path, pdf_path)
-        
+        canvas_update_voucher.draw_voucher(c, i, amount, pay_to, pan, addr, pur_code, pur_head, pur_cat, exp_type, mode, cheque_date, cheque_no_val, cheque_IFSC, cheque_AC_no, eft_date, utrn_val, dest_excel_path, pdf_path, user, print_date)
+
     # Save PDF
     c.showPage()
     c.save()
