@@ -84,7 +84,7 @@ def add_group_4and5(frame, group_frames):
     online_frame.grid(row=2, column=1, rowspan=2, padx=50, pady=20, sticky="nsew")
 
     voucher.include_bg(group_frames["group5_frame"], checkbox_var)
-    submit_button = tk.Button(group_frames["group5_frame"], text="Print", font=font_settings, command=lambda: UI_support.submit(selection_var, cheque_vars, online_vars, selected_indx, checkbox_var))   # Submit Button
+    submit_button = tk.Button(group_frames["group5_frame"], text="Print", font=font_settings, command=lambda: UI_support.submit(selection_var, cheque_vars, online_vars, selected_indx, checkbox_var, cheque_frame, online_frame))   # Submit Button
     submit_button.grid(row=2, column=2, padx=10, pady=10) 
     cancel_button = tk.Button(group_frames["group5_frame"], text="Cancel Receipt", font=font_settings, command=lambda: UI_support.cancel(selected_indx))   # Cancel Button
     cancel_button.grid(row=3, column=2, padx=10, pady=10)    
@@ -107,7 +107,7 @@ def draw_receipt(frame):
     frame_positions = [(1, 0, 1), (2, 0, 1), (3, 0, 1), (4, 0, 1), (5, 0, 1), (2, 3, 1), (2, 2, 2)]                
     group_frames = {}
 
-    for i, (row, col, span) in enumerate(frame_positions): #, start=1):
+    for i, (row, col, span) in enumerate(frame_positions):
         frame_name = f"group{i}_frame"
         if frame_name == 'group6_frame':
             grp_frame = tk.Frame(frame,  bg="white")
