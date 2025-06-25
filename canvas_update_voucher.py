@@ -24,6 +24,7 @@ font_name = config.get('FontSettings', 'font_name')
 copy_font_name = config.get('FontSettings', 'copy_font_name')
 #font_name_bold = config.get('FontSettings', 'font_name_bold')
 font_size = config.getint('FontSettings', 'font_size')
+xcl_sheet = config.get('Filenames', 'xcl_sheet')
 width, height = A4
 height = height - 56
 x_offset = 90
@@ -151,7 +152,7 @@ def draw_print_date(c, y, value):
     return
 
 # Function to draw amount in numbers and amount in words
-def draw_voucher(c, i, value, pay_to, pan, addr, pur_code, pur_head, pur_cat, exp_type, mode, cheque_date, cheque_no_val, cheque_IFSC, cheque_AC_no, eft_date, utrn_val, dest_excel_path, pdf_path, user, print_date):
+def draw_voucher(c, i, value, pay_to, pan, addr, pur_code, pur_head, pur_cat, exp_type, mode, cheque_date, cheque_no_val, cheque_IFSC, cheque_AC_no, eft_date, utrn_val, bank_name, bank_branch, dest_excel_path, pdf_path, user, print_date):
     c.setFont(font_name, font_size)
     locale.setlocale(locale.LC_ALL, 'en_IN')
     if value:
@@ -179,30 +180,34 @@ def draw_voucher(c, i, value, pay_to, pan, addr, pur_code, pur_head, pur_cat, ex
     if mode == 'Cheque':
         combined_amount_ac = in_words + " CH Date:" + cheque_date + " CH#:" + cheque_no_val + " IFSC:" + cheque_IFSC + " A/C#:" + cheque_no_val
     elif mode == 'EFT':
-        combined_amount_ac = in_words + " EFT Date:" + eft_date + " UTRN:" + utrn_val
+        combined_amount_ac = in_words + " EFT Date:" + eft_date + " UTRN:" + utrn_val + " Bank Name:" + bank_name + "Bank Branch:" + bank_branch 
     else:
         combined_amount_ac = in_words
+
+    if user is None:
+        user = ''
+    print_date = f"{user} {print_date}"
 
     if i == 0:
         print_amount_ac(c, locale_value, x_amount, x_amount_in_words, eval(y_top_amount), eval(y_top_amount_in_words), combined_amount_ac, line_width)
         wrap_text_voucher(c, f"{combined_payto}", x_payto_pan, eval(y_top_payto), line_width, font_name, font_size, 0)
         wrap_text_voucher(c, f"{combined_purchase}", x_payto_pan, eval(y_top_pan), line_width, font_name, font_size, 0)
         draw_print_date(c, eval(y_top_print_date), print_date)
-        c.drawString(x_authoriser, eval(y_top_authoriser), f"{user}")
+        #c.drawString(x_authoriser, eval(y_top_authoriser), f"{user}")
         c.setFillColorRGB(0, 0, 0) 
     elif i == 1:
         print_amount_ac(c, locale_value, x_amount, x_amount_in_words, eval(y_middle_amount), eval(y_middle_amount_in_words), combined_amount_ac, line_width)
         wrap_text_voucher(c, f"{combined_payto}", x_payto_pan, eval(y_middle_payto), line_width, font_name, font_size, 0)
         wrap_text_voucher(c, f"{combined_purchase}", x_payto_pan, eval(y_middle_pan), line_width, font_name, font_size, 0)
         draw_print_date(c, eval(y_middle_print_date), print_date)
-        c.drawString(x_authoriser, eval(y_middle_authoriser), f"{user}")
+        #c.drawString(x_authoriser, eval(y_middle_authoriser), f"{user}")
         c.setFillColorRGB(0, 0, 0) 
     elif i == 2:
         print_amount_ac(c, locale_value, x_amount, x_amount_in_words, eval(y_bottom_amount), eval(y_bottom_amount_in_words), combined_amount_ac, line_width)
         wrap_text_voucher(c, f"{combined_payto}", x_payto_pan, eval(y_bottom_payto), line_width, font_name, font_size, 0)
         wrap_text_voucher(c, f"{combined_purchase}", x_payto_pan, eval(y_bottom_pan), line_width, font_name, font_size, 0)
         draw_print_date(c, eval(y_bottom_print_date), print_date)
-        c.drawString(x_authoriser, eval(y_bottom_authoriser), f"{user}")
+        #c.drawString(x_authoriser, eval(y_bottom_authoriser), f"{user}")
         c.setFillColorRGB(0, 0, 0) 
     
     draw_code(c, dest_excel_path)
@@ -210,17 +215,17 @@ def draw_voucher(c, i, value, pay_to, pan, addr, pur_code, pur_head, pur_cat, ex
 
 def draw_code(c, dest_excel_path):
     wb = load_workbook(dest_excel_path)
-    ws = wb["Sheet1"]    #wb.active
+    ws = wb[xcl_sheet]    #wb.active
 
     # Get header row to find correct columns
-    header_row = next(ws.iter_rows(min_row=1, max_row=1, values_only=True))
-    col_map = {name.strip().lower(): idx for idx, name in enumerate(header_row) if name is not None}
+    header_row = next(ws.iter_rows(min_row=2, max_row=2, values_only=True))
+    #col_map = {name.strip().lower(): idx for idx, name in enumerate(header_row) if name is not None}
 
     # Ensure columns exist
-    barcode_col_idx = header_row.index("Barcode")
+    barcode_col_idx = header_row.index("Bar Code")
     qrcode_col_idx = header_row.index("QR Code")
     if barcode_col_idx is None or qrcode_col_idx is None:
-        raise ValueError("Required columns 'barcode' and/or 'QRCode' not found.")
+        raise ValueError("Required columns 'Bar Code' and/or 'QRCode' not found.")
 
     barcode_col_letter = get_column_letter(barcode_col_idx + 1)
     qrcode_col_letter = get_column_letter(qrcode_col_idx + 1)
@@ -229,11 +234,13 @@ def draw_code(c, dest_excel_path):
     barcode_images = {}
     qrcode_images = {}
 
+    print(len(ws._images))
+
     for img in ws._images:
         if hasattr(img.anchor, "_from"):
             col = img.anchor._from.col
             row = img.anchor._from.row
-            col_letter = get_column_letter(col + 1)
+            col_letter = get_column_letter(col + 2)
 
             if col_letter == barcode_col_letter:
                 barcode_images[row] = img
@@ -242,22 +249,21 @@ def draw_code(c, dest_excel_path):
 
     # Find all rows where at least a barcode or QR code exists
     all_rows = sorted(set(barcode_images.keys()) | set(qrcode_images.keys()))
-    last_rows = all_rows[-3:]  # Get last 3 rows with image(s)
-    #x_barcode, x_qrcode = 430, 379 #350
+
+    last_rows = all_rows[-3:]                                                   # Get last 3 rows with image(s)
     if 'SGPM_DN' in dest_excel_path or 'SPK_DPS' in dest_excel_path:
         x_qrcode_updated = x_qrcode_DN_DPS
     elif 'SGPT' in dest_excel_path:
         x_qrcode_updated = x_qrcode_SGPT
     else:
         x_qrcode_updated = x_qrcode
-    #start_y_barcode, start_y_qrcode, y_offset = height+5, height-15, 282
     
     # Draw images row-wise
     for i, row in enumerate(last_rows):
         y_barcode = eval(y_start_barcode) - i * y_offset
         y_qrcode = eval(y_start_qrcode) - i * y_offset
 
-        # Barcode
+        # Bar Code
         if row in barcode_images:
             img_data = barcode_images[row]._data()
             pil_img = Image.open(BytesIO(img_data))
