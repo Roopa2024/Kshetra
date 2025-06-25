@@ -48,12 +48,12 @@ def increment_counter(index, xcl_path):
         wb.save(xcl_path)                                           # Save new workbook
         print("New file created successfully!")
 
-    df = pd.read_excel(xcl_path, sheet_name=xcl_sheet) 
+    df = pd.read_excel(xcl_path, sheet_name=xcl_sheet, header=1) 
     wb = load_workbook(xcl_path)                                    # Load the workbook and select the sheet
     last_id = df["Id."].dropna().iloc[-1] 
     new_id = int(last_id) + 1
 
-    last_globeid= df["Globe Id."].dropna().iloc[-1]
+    last_globeid= df["Globe ID"].dropna().iloc[-1]
 
     if last_globeid:
         prefix = last_globeid[:-4]               # Extract the prefix and the number part
@@ -66,7 +66,7 @@ def increment_counter(index, xcl_path):
             textcol = hmac_sha3(secret_key[index], new_globeid) 
         return new_id, new_globeid, textcol
     else:
-        print("Globe Id. not found")
+        print("Globe ID not found")
         return None    
 
 # Save data to the DB(excel sheet here)
@@ -74,27 +74,27 @@ def save_to_excel(file_path, id, **kwargs):
     filename = os.path.basename(file_path)
     try:
         wb = load_workbook(file_path)                                   # Load the existing Excel file or create a new one
-        ws = wb.active
+        ws = wb[xcl_sheet]  #wb.active
     except FileNotFoundError:
         from openpyxl import Workbook
         wb = Workbook()
-        ws = wb.active
+        ws = wb[xcl_sheet]  #wb.active
         ws.append(list(kwargs.keys()))                                  
 
-    next_row = id + 1                                                   # Determine the next available row
+    next_row = id + 2                                                   # Determine the next available row
     qr_code_path = generate_qr_code(kwargs)                             # Generate QR Code before inserting data
 
     # Insert data into the correct columns
-    for col_num, (key, value) in enumerate(kwargs.items(), start=1):
-        if key not in ["Barcode", "QR Code"]:   #to retain the existing values of these cols in excel
+    for col_num, (key, value) in enumerate(kwargs.items(), start=2):
+        if key not in ["Bar Code", "QR Code"]:   #to retain the existing values of these cols in excel
             #print(f"Key = {key} col = {col_num} and value = {value}")
             ws.cell(row=next_row, column=col_num, value=value)
 
-    # Insert barcode into the "Barcode" column (if exists)
-    if "Barcode" in kwargs and kwargs["Barcode"]:
-        barcode_img = kwargs["Barcode"]  
+    # Insert barcode into the "Bar Code" column (if exists)
+    if "Bar Code" in kwargs and kwargs["Bar Code"]:
+        barcode_img = kwargs["Bar Code"]  
         img = Image(barcode_img)
-        barcode_col = list(kwargs.keys()).index("Barcode") + 1          # Find the column index for "Barcode"
+        barcode_col = list(kwargs.keys()).index("Bar Code") + 1          # Find the column index for "Bar Code"
         ws.add_image(img, ws.cell(row=next_row, column=barcode_col).coordinate)
 
     # Insert QR Code image
@@ -137,7 +137,7 @@ def generate_barcode(data, temp_path="temp_barcode"):
 # Function to generate QR code
 def generate_qr_code(row_data, qr_path="temp_qr.png"):
     # Create a copy of row_data to prevent modifying the original dictionary
-    qr_data = {key: value for key, value in row_data.items() if key != "Barcode" and value}
+    qr_data = {key: value for key, value in row_data.items() if key != "Bar Code" and value}
 
     # Convert row data to a readable string (":" and "-" are not readble by QR Code)
     qr_content = ";".join([f"{key.replace(':', ' ')} = {str(value).replace(':', ' ')}" for key, value in qr_data.items()])
