@@ -13,6 +13,7 @@ config.read(config_path)
 font_settings = (config.get('FontSettings', 'font_name'), config.getint('FontSettings', 'font_size'))
 font_settings_bold = (config.get('FontSettings', 'font_name'), config.getint('FontSettings', 'font_size'), "bold")
 dv_entity_xcl = config.get('Filenames', 'voucher_input_files')
+sheet_map= config.get('Filenames', 'mapping_sheet')
 dv_entity_xcls = dv_entity_xcl.split(',')
 
 selected_option = {}   
@@ -53,7 +54,7 @@ def generate_unique_codes(df):
 
 
 def load_excel_and_generate_codes(file_path):
-    df = pd.read_excel(file_path, sheet_name='Mapping')
+    df = pd.read_excel(file_path, sheet_name=sheet_map)
     if 'Purchase Head' not in df.columns:
         raise ValueError("Excel must contain 'Purchase Head' column")
     # Identify all Purchase Category columns
@@ -83,7 +84,7 @@ def load_excel_and_generate_codes(file_path):
     return expanded_df, codes, code_to_data
 
 def load_data(file_path):
-    df = pd.read_excel(file_path, sheet_name='Mapping')
+    df = pd.read_excel(file_path, sheet_name=sheet_map)
     # Assume first column is Purchase Head
     head_col = df.columns[0]
     category_cols = df.columns[1:-1]  # Exclude first (head) and last (expense type)
@@ -177,7 +178,8 @@ def get_validate_number(root):
     return root.register(lambda char: char.isdigit() or char == "" or len(char) < 10)
 
 def add_group_voucher(frame, group_frames, frame_name_options, frame_name_hidden, count, selected_option, voucher_data, validate_number):
-    #print (f"add group DV content {count}")
+    vcmd = (frame.register(UI_support.validate_alpha), "%S", "%P")
+    vcmd_branch =(frame.register(UI_support.validate_alpha_branch), "%S", "%P")
     selected_option[count] = tk.StringVar(value="Cash")
 
     # Cheque Frame (Right)
@@ -191,7 +193,7 @@ def add_group_voucher(frame, group_frames, frame_name_options, frame_name_hidden
     online_frame.grid_remove()    
     
     get_selected_option(count, selected_option, group_frames, frame_name_options, cheque_frame, online_frame, voucher_data)
-
+   
     tk.Label(cheque_frame, text="Cheque Details", font=font_settings_bold, bg="#99ccff").grid(row=0, column=0, columnspan=2, pady=5)
     cheque_fields = [
         ("Cheque Date:", DateEntry, {"date_pattern": "dd/mm/yyyy", "state": "readonly"}),
@@ -204,6 +206,8 @@ def add_group_voucher(frame, group_frames, frame_name_options, frame_name_hidden
     online_fields = [
         ("Bank Date:", DateEntry, {"date_pattern": "dd/mm/yyyy", "state": "readonly"}),
         ("UTRN:", tk.Entry, {"textvariable": tk.StringVar()}),
+        ("Bank Name:", tk.Entry, {"validate": "key", "validatecommand": vcmd}),
+        ("Bank Branch:", tk.Entry, {"validate": "key", "validatecommand": vcmd_branch}),
     ]
 
     cheque_vars = {}                                                                    # Store variables for later access
@@ -226,15 +230,14 @@ def add_group_voucher(frame, group_frames, frame_name_options, frame_name_hidden
         tk.Label(online_frame, text=label, font=font_settings, bg="#99ccff").grid(row=i + 1, column=0, padx=5, pady=5, sticky="w")
     
         var = options.get("textvariable", None)
-        if var:                                                                         # Apply character limits
+        if var:                                                                       # Apply character limits
             if "UTRN:" in label:
                 limit = 27
-                entry = widget(online_frame, font=font_settings, width=27, **options)
-            var.trace_add("write", lambda *args, v=var, l=limit: UI_support.limit_chars(v, l))
-            online_vars[label] = var                                                    # Store for later
+                var.trace_add("write", lambda *args, v=var, l=limit: UI_support.limit_chars(v, l))
+        entry = widget(online_frame, font=font_settings, width=27, **options)
+        online_vars[label] = var                                                         # Store for later
         
         if "Bank Date:" in label:
-            #print(f"BANK DATE {label}")
             entry = widget(online_frame, font=font_settings, width=12, **options)
         entry.grid(row=i + 1, column=1, sticky="w", padx=5, pady=5)
         online_vars[label] = entry                                                      # Store reference
@@ -244,6 +247,8 @@ def add_group_voucher(frame, group_frames, frame_name_options, frame_name_hidden
     #print(f" Voucher entries are {voucher_entries}")
 
     toggle_cheque_fields(count, cheque_frame, online_frame, voucher_data)
+
+    return cheque_frame, online_frame
 
 def on_category_selected(category_cb, head_cb, code_cb):
     selected_category = category_cb.get().strip()
@@ -308,7 +313,7 @@ def draw_voucher(frame, selected_indx, root, checkbox_var):
     
         limit = 200
         name_var = tk.StringVar()
-        tk.Label(receipt_frame, text="Pay to:", font=font_settings, bg="#99ccff").grid(row=2, column=0, sticky="w", padx=5, pady=5) 
+        tk.Label(receipt_frame, text="Payee Name:", font=font_settings, bg="#99ccff").grid(row=2, column=0, sticky="w", padx=5, pady=5) 
         name_entry = tk.Entry(receipt_frame, font=font_settings, textvariable=name_var)
         name_var.trace_add("write", lambda *args, v=name_var, l=limit: UI_support.limit_chars(v, l))
         name_entry.grid(row=2, column=1, sticky="w", padx=5, pady=5)
@@ -362,7 +367,6 @@ def draw_voucher(frame, selected_indx, root, checkbox_var):
 
         try:
             heads, mapping, expense_types = load_data(dest_excel_path)
-            #print(f"Expense Types Mapping: {expense_types}")
             head_to_categories = mapping
             head_to_expense_type = expense_types
             head_cb['values'] = [''] + heads  # Add an empty string at the beginning to set blank as default
@@ -389,7 +393,7 @@ def draw_voucher(frame, selected_indx, root, checkbox_var):
         group_frames[frame_name_hidden] = grp_frame
 
         #print(f"frame names are  {frame_name_options} and {frame_name_hidden}")
-        selected_option[i] = tk.StringVar()
+        selected_option[i] = tk.StringVar(value="Cash")
         voucher_data = {
             'date': date_entry,
             'pay_to': name_entry,
@@ -406,14 +410,14 @@ def draw_voucher(frame, selected_indx, root, checkbox_var):
         }
         voucher_entries.append(voucher_data)
         #print (f"Data is {voucher_data}")
-        add_group_voucher(frame, group_frames, frame_name_options, frame_name_hidden, i, selected_option, voucher_data, validate_number)
+        cheque_frame, online_frame = add_group_voucher(frame, group_frames, frame_name_options, frame_name_hidden, i, selected_option, voucher_data, validate_number)
         
 
     print_frame = tk.LabelFrame(frame,  font=font_settings_bold, bg="#99ccff", bd=2, relief="groove", padx=10, pady=10 )
     print_frame.grid(row=1, column=5, rowspan=1, padx=15, pady=10, sticky="ew")
     
     include_bg(print_frame, checkbox_var)
-    submit_button = tk.Button(print_frame, text="Print", font=font_settings, command=lambda: UI_support.voucher_print(voucher_entries, selected_indx, checkbox_var))   # Submit Button
+    submit_button = tk.Button(print_frame, text="Print", font=font_settings, command=lambda: UI_support.voucher_print(voucher_entries, selected_indx, checkbox_var, selected_option, cheque_frame, online_frame))   # Submit Button
     submit_button.grid(row=2, column=2, padx=10, pady=10) 
     submit_button.config(state="disabled")
 
@@ -430,7 +434,7 @@ def draw_inv_voucher(frame):
         date_entry = DateEntry(receipt_frame, width=12, background='darkblue', foreground='white', borderwidth=2, state="readonly")
         date_entry.grid(row=0, column=1, pady=5)
 
-        tk.Label(receipt_frame, text="Pay to:", font=font_settings, bg="#99ccff").grid(row=1, column=0, sticky="e", pady=5)
+        tk.Label(receipt_frame, text="Payee Name:", font=font_settings, bg="#99ccff").grid(row=1, column=0, sticky="e", pady=5)
         name_entry = tk.Entry(receipt_frame)
         name_entry.grid(row=1, column=1, pady=5)
 
