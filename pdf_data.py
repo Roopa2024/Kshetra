@@ -134,17 +134,18 @@ def create_pdf_from_kwargs(kwargs, pdf_path, entity, with_bg, top_text, bottom_t
     
     c.setFont(font_name, font_size)     
     for key, value in kwargs.items():
-        if key not in ["Barcode", "QR Code"] and value:         # Exclude image fields
+        if key not in ["Bar Code", "QR Code"] and value:         # Exclude image fields
+            global mode
             match key:
-                case 'Receipt Date':
+                case 'Receipt/Invoice Date':
                     canvas_update.draw_receipt_date(c, value, receipt, pdf)
                 case 'Contributor Name':
                     if receipt: c.drawString(x_top_contributor_name, eval(y_top_contributor_name), f"{value}")          
                     c.drawString(x_bottom_contributor_name, eval(y_bottom_contributor_name), f"{value}")       
-                case 'Address':
+                case 'Contributor Address':
                     if receipt: canvas_update.wrap_text(c, f"{value}", x_top_address, eval(y_top_address), 500, font_name, font_size, receipt)
                     canvas_update.wrap_text(c, f"{value}", x_bottom_address, eval(y_bottom_address), 500, font_name, font_size, 1)
-                case 'PAN':
+                case 'Contributor PAN':
                     c.setFont(font_name, font_size) 
                     if pdf:
                         x = x_bottom_pan
@@ -161,18 +162,22 @@ def create_pdf_from_kwargs(kwargs, pdf_path, entity, with_bg, top_text, bottom_t
                 case 'Contributor Intent':
                     if receipt: c.drawString(x_top_contributor_intent, eval(y_top_contributor_intent), f"{value}")
                     c.drawString(x_bottom_contributor_intent, eval(y_bottom_contributor_intent), f"{value}")
-                case 'Bank Date':
-                    canvas_update.draw_bank_date(c, value, receipt)
-                case 'UTR No.':
-                    canvas_update.draw_utrn(c, value, receipt, pdf)
+                case 'Inst. Date':
+                    if mode == 'EFT':
+                        canvas_update.draw_bank_date(c, value, receipt)
+                    elif mode == 'Cheque':
+                        canvas_update.draw_cheque_date(c, value, receipt)
+                case 'Inst. No':
+                    if mode == 'EFT':
+                        canvas_update.draw_utrn(c, value, receipt, pdf)
+                    elif mode == 'Cheque':
+                        canvas_update.draw_cheque_no(c, value, receipt)
                 case 'Amount':
                     canvas_update.draw_amount(c, value, receipt, pdf)
                 case 'Payment Mode':
                     canvas_update.draw_payment_mode_tick(c, value, receipt)
-                case 'Cheque Date':
-                    canvas_update.draw_cheque_date(c, value, receipt)
-                case 'Cheque No.':
-                    canvas_update.draw_cheque_no(c, value, receipt)
+                    mode = value
+                    print(f'MODE here is {mode}')
                 case 'IFSC':
                     canvas_update.draw_ifsc(c, value, receipt)
                 case 'Account No.':
@@ -190,7 +195,7 @@ def create_pdf_from_kwargs(kwargs, pdf_path, entity, with_bg, top_text, bottom_t
                     canvas_update.draw_copy_type(c, y_bottom_print_date, value)
                     c.setFont(font_name, font_size)
                     #c.drawString(475, 5, f"{value}")
-                case 'Authoriser':
+                case 'Issuer':
                     if receipt:
                         c.drawString(x_authoriser, y_top_barcode_receipt, f"{value}")
                     c.drawString(x_authoriser, y_bottom_barcode_receipt, f"{value}")
@@ -204,15 +209,15 @@ def create_pdf_from_kwargs(kwargs, pdf_path, entity, with_bg, top_text, bottom_t
         except Exception as e:
             print("Error adding QR Code:", e)
 
-    # Insert Barcode
-    if kwargs.get("Barcode"):
+    # Insert Bar Code
+    if kwargs.get("Bar Code"):
         try:
-            barcode_image = ImageReader(kwargs["Barcode"])
+            barcode_image = ImageReader(kwargs["Bar Code"])
             name = entity.split(".")[0]
             c.drawImage(barcode_image, x_barcode, y_top_barcode_receipt, width=barcode_width, height=barcode_height)
             c.drawImage(barcode_image, x_barcode, y_bottom_barcode_receipt, width=barcode_width, height=barcode_height)
         except Exception as e:
-            print("Error adding Barcode:", e)
+            print("Error adding Bar Code:", e)
    
     canvas_update.create_vertical_watermark(c, top_text, bottom_text)
 
@@ -274,12 +279,8 @@ def create_pdf_from_kwargs_voucher(kwargs, v_entries, pdf_path, entity, with_bg,
     c = canvas.Canvas(packet, pagesize=A4)
     width, height = A4
     height = height - 56
-    cheque_date, cheque_no_val, cheque_IFSC, cheque_AC_no, eft_date, utrn_val = '', '','','','',''
-    user = UI_support.get_user()
-
-    c.setFont(font_name, font_size)  
-    print_date = kwargs.get('Print Date', '')
-    user = kwargs.get('Authoriser', '')
+    c.setFont(font_name, font_size) 
+    cheque_date, cheque_no_val, cheque_IFSC, cheque_AC_no, eft_date, utrn_val, bank_name, bank_branch  = '', '', '','','','','',''
 
     for i, voucher in enumerate(v_entries):
         voucher_date = voucher['date'].get()
@@ -292,15 +293,17 @@ def create_pdf_from_kwargs_voucher(kwargs, v_entries, pdf_path, entity, with_bg,
         pur_cat = voucher['pur_cat'].get()
         exp_type = voucher['exp_type'].get()
         mode = voucher['payment_mode'].get()
-        
+        print_date = kwargs.get('Print Date', '')
+        user = UI_support.get_user(amount)
+
         canvas_update_voucher.draw_voucher_date(c, i, voucher_date)
 
         if mode == "Cheque":
             cheque_date, cheque_no_val, cheque_IFSC, cheque_AC_no = UI_support.get_cheque_data(voucher)
         elif mode == "EFT":
-            eft_date, utrn_val = UI_support.get_eft_data(voucher)
+            eft_date, utrn_val, bank_name, bank_branch  = UI_support.get_eft_data(voucher)
         
-        canvas_update_voucher.draw_voucher(c, i, amount, pay_to, pan, addr, pur_code, pur_head, pur_cat, exp_type, mode, cheque_date, cheque_no_val, cheque_IFSC, cheque_AC_no, eft_date, utrn_val, dest_excel_path, pdf_path, user, print_date)
+        canvas_update_voucher.draw_voucher(c, i, amount, pay_to, pan, addr, pur_code, pur_head, pur_cat, exp_type, mode, cheque_date, cheque_no_val, cheque_IFSC, cheque_AC_no, eft_date, utrn_val, bank_name, bank_branch, dest_excel_path, pdf_path, user, print_date)
 
     # Save PDF
     c.showPage()
