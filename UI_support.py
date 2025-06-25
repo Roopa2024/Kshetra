@@ -189,15 +189,19 @@ def get_cheque_data(voucher):
     return cheque_date.get(), cheque_no_val, cheque_IFSC.get(), cheque_AC_no.get()
 
 def get_eft_data(voucher):
+    utrn_val, bank, branch = '', '', ''
     eft_data = voucher.get('eft', {})
     eft_date = eft_data.get('Bank Date:')
     utrn = eft_data.get("UTRN:")
+    bank_name = eft_data.get('Bank Name:')
+    bank_branch = eft_data.get('Bank Branch:')
+
     if utrn:
         utrn_val = utrn.get()
-        print(f"UTRN is {eft_date.get()} and {utrn_val}")
-    else:
-        utrn_val = ''
-    return eft_date.get(), utrn_val
+        bank = bank_name.get()
+        branch = bank_branch.get()
+    
+    return eft_date.get(), utrn_val, bank, branch
 
 
 def delete_last_n_rows(file_path, n, sheet_name):
@@ -217,7 +221,17 @@ def delete_last_n_rows(file_path, n, sheet_name):
 def clear_voucher_fields(voucher):
     for key, widget in voucher.items():
         try:
-            if isinstance(widget, DateEntry):
+            if isinstance(widget, dict):  # Check if the widget is a dictionary
+                for sub_key, sub_widget in widget.items():
+                    if isinstance(sub_widget, DateEntry):
+                        sub_widget.set_date(date.today())  # Clear the date
+                    elif isinstance(sub_widget, tk.Entry):
+                        sub_widget.delete(0, tk.END)
+                    elif isinstance(sub_widget, ttk.Combobox):
+                        sub_widget.set('')
+                    elif hasattr(sub_widget, 'set'):
+                        sub_widget.set('')
+            elif isinstance(widget, DateEntry):
                 widget.set_date(date.today())  # or use widget.delete(0, tk.END) if needed
             elif isinstance(widget, tk.Entry):
                 widget.delete(0, tk.END)
@@ -237,64 +251,28 @@ def clear_voucher_fields(voucher):
 
             if isinstance(voucher['payment_mode'], tk.StringVar):
                 voucher['payment_mode'].set('Cash')  # Unselect all
-
-            # Clear Cheque Fields
-            for field in ['cheque_no', 'cheque_ifsc', 'cheque_ac_no', 'cheque_date']:
-                if field in voucher['cheque']:
-                    widget = voucher['cheque'][field]
-                    if isinstance(widget, tk.Entry):
-                        widget.delete(0, tk.END)
-                    elif isinstance(widget, DateEntry):
-                        widget.set_date('')
-
-            # Clear EFT Fields
-            for field in ['eft_date', 'utrn']:
-                if field in voucher['eft']:
-                    widget = voucher['eft'][field]
-                    if isinstance(widget, tk.Entry):
-                        widget.delete(0, tk.END)
-                    elif isinstance(widget, DateEntry):
-                        widget.set_date('')
         except Exception as e:
             print(f"Error clearing field {key}: {e}")
-    #voucher['payment_mode'].set('Cash') 
-    try:
-        cheque = voucher.get('cheque', {})
-        for field in ['cheque_no', 'cheque_ifsc', 'cheque_ac_no', 'cheque_date']:
-            widget = cheque.get(field)
-            if isinstance(widget, tk.Entry):
-                widget.delete(0, tk.END)
-            elif isinstance(widget, DateEntry):
-                widget.set_date('')
-    except Exception as e:
-        print(f"Error clearing cheque fields: {e}")
 
-def get_user():
-    authoriser = getpass.getuser()
-    return authoriser
+def get_user(amount):
+    if amount:
+        username = getpass.getuser()
+        authoriser = f'Issued By: {username}'
+        return authoriser
+    else:
+        authoriser = ''
+        return
 
-def voucher_print(voucher_entries, selected_indx, checkbox_var):
-    cheque_date, cheque_no_val, cheque_IFSC, cheque_AC_no, eft_date, utrn_val = '', '', '', '','',''
-    for idx, voucher in enumerate(voucher_entries):
-        print(f"----- Voucher Data {idx+1}-----")
-        print("Date:", voucher['date'].get())
-        print("Pay To:", voucher['pay_to'].get())
-        print("Amount:", voucher['amount'].get())
-        print("PAN:", voucher['pan'].get())
-        print("Address:", voucher['addr'].get())
-        print("Payment Mode:", voucher['payment_mode'].get())
-        print("Purchase details:", voucher['pur_code'].get(),voucher['pur_head'].get(), voucher['pur_cat'].get(), voucher['exp_type'].get())
-
+def voucher_print(voucher_entries, selected_indx, checkbox_var, selected_option, cheque_frame, online_frame):
     dest_excel_path = generate_excel_file(dv_entity_xcls[selected_indx])
     print (f"dest excel file is {dest_excel_path}")
 
     entity_name = os.path.splitext(dv_entity[selected_indx])[0]                        # Update kwargs with QR Code path
     os.makedirs(f"pdfs/{entity_name}", exist_ok=True) 
     
-    #for idx, receipt in enumerate(voucher_entries):
-    #    print(f"Voucher Entry {idx}: {receipt}")
-    
     for i, voucher in enumerate(voucher_entries):
+        cheque_date, cheque_no_val, cheque_IFSC, cheque_AC_no, eft_date, utrn_val, bank_name, bank_branch = '', '', '', '','','','',''
+        inst_voucher_date, inst_voucher_num = '', ''
         voucher_date = voucher['date'].get()
         pay_to = voucher['pay_to'].get()
         amount = voucher['amount'].get()
@@ -312,12 +290,16 @@ def voucher_print(voucher_entries, selected_indx, checkbox_var):
                 amount = ""  # User wants to continue; you can handle this case as needed
             else:
                 print(f"INDEX = {i}")
-                delete_last_n_rows(dest_excel_path, n=i, sheet_name="Sheet1")
+                delete_last_n_rows(dest_excel_path, n=i, sheet_name=xcl_sheet)
                 return
         if mode == "Cheque":
             cheque_date, cheque_no_val, cheque_IFSC, cheque_AC_no = get_cheque_data(voucher)
+            inst_voucher_date = cheque_date
+            inst_voucher_num = cheque_no_val
         elif mode == "EFT":
-            eft_date, utrn_val = get_eft_data(voucher)
+            eft_date, utrn_val, bank_name, bank_branch = get_eft_data(voucher)
+            inst_voucher_date = eft_date
+            inst_voucher_num = utrn_val
 
         id, globe_id, bar_text = excel_data.increment_counter(selected_indx, dest_excel_path) 
         date = datetime.datetime.now()
@@ -329,37 +311,54 @@ def voucher_print(voucher_entries, selected_indx, checkbox_var):
         #the col header and order here should be an exact match with the excel.
         kwargs = {
             'Id.' : id,
+            'Payee Name' : pay_to,
+            'Address': addr,
+            'Amount' : amount,
             'Voucher No.' : globe_id, 
             'Voucher Date' : voucher_date,
-            'Amount' : amount,
-            'Pay to' : pay_to,
-            'PAN' : pan,
-            'Address': addr,
+            'Payment Mode': mode,
+            'Bank Realisation Date' : '',
+            'Inst. Date': inst_voucher_date,
+            'Inst. No': inst_voucher_num,
+            'IFSC': cheque_IFSC,
+            'Account No': cheque_AC_no,
+            'Bank Name': bank_name,
+            'Bank Branch': bank_branch,
+            'Payee PAN No' : pan,
+            'Payee GST No' : '',
+            'GST Stat' : '',
+            'GST CPIN' : '',
+            'TDS Stat' : '',
+            'TDS CIN' : '',
+            'Expense ID' : '',
+            'Globe ID' : globe_id,
+            'Globe Stat' : '',
+            'Expense Type':exp_type,
             'Purchase Code': pur_code,
             'Purchase Head': pur_head,
             'Purchase Category': pur_cat,
-            'Expense Type':exp_type,
-            'Payment Mode': mode,
-            'Cheque Date': cheque_date,
-            'Cheque No.': cheque_no_val,
-            'IFSC': cheque_IFSC,
-            'A/C No.': cheque_AC_no,
-            'EFT Date': eft_date,
-            'UTRN': utrn_val,
+            'User Description' : '',
+            'Proof' : '',
+            'Narration' : '',
             'Print Date' : formatted_date,
-            'Authoriser' : get_user(),
-            'Globe Id.' : globe_id,
+            'Issuer' : get_user(amount),
+            'Bar Code' : f"{barcode_path}.png",
             'TextColumn' : bar_text,
-            'Barcode' : f"{barcode_path}.png",
             'QR Code' : '',
         }
 
+        print(kwargs)
         excel_data.save_to_excel(dest_excel_path, id, **kwargs)
         
     pdf_path = f"pdfs/{entity_name}/{kwargs['Id.']}.pdf"
     pdf_data.create_pdf_from_kwargs_voucher(kwargs, voucher_entries, pdf_path, dv_entity[selected_indx], checkbox_var.get(), dest_excel_path)
     for i, voucher in enumerate(voucher_entries):
         clear_voucher_fields(voucher)
+    
+    for key, var in selected_option.items():
+        var.set('Cash')
+    cheque_frame.grid_remove()
+    online_frame.grid_remove()
 
 def clear_fields(widget):
     if isinstance(widget, DateEntry):
@@ -387,7 +386,7 @@ def cancel(selected_indx):
 
 
 # Submit Function
-def submit(selection_var, cheque_vars, online_vars, selected_indx, checkbox_var):   
+def submit(selection_var, cheque_vars, online_vars, selected_indx, checkbox_var, cheque_frame, online_frame):   
     details = {}
     for label, var in input_vars.items():
         if isinstance(var, tk.StringVar):                       
@@ -430,39 +429,52 @@ def submit(selection_var, cheque_vars, online_vars, selected_indx, checkbox_var)
         elif payment_mode == 'Cash':
             bank_date, utrn, bank_name, bank_br = '', '', '',''
 
+    if cheque_date:
+        print(f'CHEQUE here {cheque_date} and {cheque_no}')
+        inst_date = cheque_date
+        inst_num = cheque_no
+    else:
+        print(f'CASh/EFT here {bank_date} and {utrn}')
+        inst_date = bank_date
+        inst_num = utrn
+
     dest_excel_path = generate_excel_file(entity_xcls[selected_indx])
     id, globe_id, bar_text = excel_data.increment_counter(selected_indx, dest_excel_path) 
     date = datetime.datetime.now()
     formatted_date = date.strftime("%d/%m/%Y %H.%M.%S")
-    authoriser = getpass.getuser()
+    #authoriser = getpass.getuser()
     barcode_path = excel_data.generate_barcode(str(globe_id))   #barcode is temporarily saved in the current dir
     excel_data.draw_text(f"{barcode_path}.png", bar_text)       #adding TextColumn to the barcode
 
     #the col header and order here should be an exact match with the excel.
     kwargs = {
         'Id.' : id,
-        'Receipt No.' : globe_id, 
-        'Receipt Date' : details.get("Receipt Date:"),
+        'Receipt/Invoice Book No': '',
+        'Receipt/Invoice No' : globe_id, 
+        'Receipt/Invoice Date' : details.get("Receipt Date:"),
         'Amount' : details.get("Amount:"),
         'Contributor Name' : details.get("Contributor Name:"),
+        'Contributor Address' : details.get("Address:"),
+        'Contributor PAN' : details.get("PAN:"),
         'Contributor Type' : details.get("Contribution Type:"),
         'Contributor Intent' : details.get("Contribution Intent:"),
-        'Bank Date' : bank_date,
-        'UTR No.' : utrn,
-        'Cheque Date' : cheque_date,
-        'Cheque No.' : cheque_no,
+        'Payment Mode' : payment_mode,
+        'Bank Realisation Date' : '',
+        'Inst. Date' : inst_date,
+        'Inst. No' : inst_num, 
         'IFSC' : IFSC,
         'Account No.' : ac_no,
-        'Address' : details.get("Address:"),
-        'PAN' : details.get("PAN:"),
-        'Payment Mode' : payment_mode,
         'Bank Name' : bank_name, 
-        'Branch Name' : bank_br, 
+        'Branch Name' : bank_br,
+        'Income ID' : '',
+        'Globe ID' : globe_id,
+        'Globe Stat' : '',
+        'Proof' : '',
+        'Narration' : '',
         'Print Date' : formatted_date,
-        'Authoriser' : authoriser,
-        'Globe Id.' : globe_id,
+        'Issuer' : get_user(details.get("Amount:")),
+        'Bar Code' : f"{barcode_path}.png",
         'TextColumn' : bar_text,
-        'Barcode' : f"{barcode_path}.png",
         'QR Code' : '',
     }
 
@@ -485,7 +497,7 @@ def submit(selection_var, cheque_vars, online_vars, selected_indx, checkbox_var)
         pdf_data.create_pdf_from_kwargs(kwargs, pdf_path, entity[selected_indx], checkbox_var.get(), copy_types[0], copy_types[0], 1)
     
     try:
-        df = pd.read_excel(dest_excel_path, sheet_name=xcl_sheet)
+        df = pd.read_excel(dest_excel_path, sheet_name=xcl_sheet, header=1)
         workbook = openpyxl.load_workbook(dest_excel_path)
         sheet = workbook[xcl_sheet] 
         pdf_dir = pdf_data.get_pdf_directory()
@@ -509,3 +521,7 @@ def submit(selection_var, cheque_vars, online_vars, selected_indx, checkbox_var)
         clear_fields(widget)
     for key, widget in input_vars.items():
         clear_fields(widget)
+
+    selection_var.set('Cash')
+    cheque_frame.grid_remove()
+    online_frame.grid_remove()
