@@ -1,7 +1,5 @@
 import tkinter as tk
 from datetime import datetime
-import configparser
-import os
 
 current_time = datetime.now().time()
 formatted_time = current_time.strftime("%H:%M")
@@ -9,30 +7,16 @@ current_date = datetime.now().date()
 formatted_date = current_date.strftime("%d.%m.%Y")
 formatted_date_no_dots = formatted_date.replace(".", "")
 
-configuration_path = os.path.dirname(os.path.abspath(__file__))+"\config\main.ini"
-print(configuration_path)
-config = configparser.ConfigParser()
-config.read(configuration_path)
-font_name = config.get('FontSettings', 'font_name')
-font_size = int(config.get('FontSettings', 'font_size'))
-font_size_small = int(config.get('FontSettings', 'font_size_small'))
-font_size_large = int(config.get('FontSettings', 'font_size_large'))
-font_name_bold = config.get('FontSettings', 'font_name_bold')
-font_size_bold = int(config.get('FontSettings', 'font_size_bold'))
-font_color = config.get('FontSettings', 'font_color')
-xcl_file = config.get('Filenames', 'xcl_file')
-xcl_sheet = config.get('Filenames', 'xcl_sheet')
-
 field_data_hdfc = {
     #'rtgs': 'X',
     'BANK': 'hdfc',
-    'hdfc_cust_name': 'Trust', #'hdfc_cust_name',
+    'hdfc_cust_name': 'SHRI PARASHAKTHI DEGULA PUNARNIRMANA SAMITI', #'hdfc_cust_name',
     'Others': 'Others',
     'time': formatted_time,
-    'cust_name': 'Trust',
-    'acct_num': '123456789',
+    'cust_name': 'SHRI PARASHAKTHI DEGULA PUNARNIRMANA SAMITI',
+    'acct_num': '50100128075492',
     'chq_num': '',
-    'mobile': '9234567899',
+    'mobile': '9177199980',
     #'addr_remitter': 'addr_remitte',
     #'email': 'email@gmail.com',
     #'cash_dep': 'cash_dep',
@@ -51,18 +35,18 @@ field_data_hdfc = {
 field_data_kar = {
     'BANK': 'kar',
     'date': formatted_date,
-    'PAN': '',
+    'PAN': 'AAFTS7088F',
     'bank_br': 'Kavoor',
     'amount': '',
     'in_words': '',
-    'acct_num': '123456789',
+    'acct_num': '6052500100794701',
     'chq_num': '',
     'chq_date': '',
-    'cust_name': 'Trust',
-    'addr_remitter': 'addr_remitte',
-    'mobile': '9234567899',
+    'cust_name': 'SHREE GURUPARASHAKTHI MUTT - DEGULA NIRMANA',
+    'addr_remitter': '',
+    'mobile': '9177199980',
     'ben_name': '',
-    'ben_acct_num': '6753789',
+    'ben_acct_num': '',
     'acct_type': 'SB',
     'bank_name': '',
     'ifsc_code': '',
@@ -72,20 +56,20 @@ field_data_kar = {
 field_data_canara = {
     'BANK': 'canara',
     'date': formatted_date_no_dots,
-    'PAN': 'aaaaaaaaa',
+    'PAN': 'AAFTS7088F',
     'bank_br': 'Kavoor',
     'amount': '',
     'in_words': '',
-    'acct_num': '123456789',
-    'chq_num': '1222222222',
+    'acct_num': '0640101010503',
+    'chq_num': '',
     'chq_date': '',
-    'cust_name': 'Trust', 
-    'addr_remitter': 'addr_remitte',
-    'mobile': '9234567899',
-    'cust_name': 'Trust',
+    'cust_name': 'SHREE PARASHAKTHI TRUST', 
+    'addr_remitter': '',
+    'mobile': '9177199980',
+    'cust_name': 'SHREE PARASHAKTHI TRUST',
     'ben_name': '',
-    'ben_acct_num': 'ben_acct_nums',
-    're-ben_acct_num': 're ben_acct_num Doe',
+    'ben_acct_num': '',
+    're-ben_acct_num': '',
     'ben_bank':'',
     'ifsc_code': '',
     'ben_bank_br': ''
@@ -95,19 +79,19 @@ field_data_canara = {
 field_data_union = {
     'BANK': 'union',
     'bank_br': 'Kavoor',
-    'acct_num': '123456789',
-    'cust_name': 'Trust', #'hdfc_cust_name',
-    'mobile': '9234567899',
-    'PAN': 'aaaaaaaaa',
+    'acct_num': '520101002057561',
+    'cust_name': 'PRESIDENT SHREE GURUPARASHAKTHI TRUST', #'hdfc_cust_name',
+    'mobile': '9177199980',
+    'PAN': 'AAFTS7088F',
     'amount': '',
     'exchange': '0',
     'total': '',
     'in_words': '',
     'chq_num': '',
     'chq_date': '',
-    'ben_acct_num': '1233566',
+    'ben_acct_num': '',
     'ben_name': '',
-    'ben_addr': 'ben_addr',
+    'ben_addr': '',
     'bank_name':'',
     'ben_bank_br': '',
     'ifsc_code': '',
