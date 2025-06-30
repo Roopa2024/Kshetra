@@ -9,26 +9,16 @@ import textwrap
 root = None
 canvas2 = None
 
-class ChequeBack:
-    def __init__(self):
-        self.current_widget = None
-
-    def set_widget(self, widget):
-        self.current_widget = widget
-
-# Instantiate the class to access the `current_widget` attribute
-cheque_back = ChequeBack()
-
 # Function to update the default_value
 def update_ifsc(new_value, sel_bank):
     ifsc_value = tk.StringVar()
     ifsc_value.set(new_value)
     ifsc_label = tk.Label(root, textvariable=new_value, font=("Arial", 9), bg="lightgray", width=12) #textvariable=default_value, state="readonly", bd=2, highlightthickness=2, highlightbackground="gray", highlightcolor="blue", font=("Arial", 10) )
-    canvas2.create_window(45, 180, window=ifsc_label, anchor="w") 
+    canvas2.create_window(45, 190, window=ifsc_label, anchor="w") 
 
     bank_value.set(sel_bank)
     bank_label = tk.Label(root, textvariable=bank_value, font=("Arial", 9), bg="lightgray", width=12) # Create an entry field
-    canvas2.create_window(175, 180, window=bank_label, anchor="w")
+    canvas2.create_window(175, 190, window=bank_label, anchor="w")
 
 def update_chq_date(event):
     selected_date = cheque_front.date_entry.get_date()
@@ -111,7 +101,6 @@ def generate_cheque_back_new():
 
 def generate_cheque_back():
     print (f"Generate Back cheque ")
-    current_widget = tk.Entry()
     globe_id =excel_con.increment_counter()
 
     # Create cheque image
@@ -266,25 +255,17 @@ def switch_to_checkbox():
 # Bind the dropdown selection to a callback
 def handle_selection(event):
     print(f"Current selection : {purpose_dropdown.get()}")
-    if purpose_dropdown.get() == "Revenue":
-        print("Revenue") #switch_to_checkbox()
-    elif purpose_dropdown.get() == "Capital":
-        print("Capital")
-        #switch_to_entry()
-
-def create_dropdowns(dropdown_values, x_position, y_position):
-    global purpose_dropdown
-    #dropdown_values = [arg1, arg2]     # Dropdown values and Combobox setup
-    purpose_dropdown = ttk.Combobox(root, values=dropdown_values, state="readonly", font=("Arial", 10), width=10)
-    purpose_dropdown.set(dropdown_values[0])  # Set the default selection
-    purpose_dropdown.bind("<<ComboboxSelected>>", handle_selection) 
-    # Canvas to place the dropdown
-    cheque_front.canvas.create_window(x_position, y_position, window=purpose_dropdown, anchor="nw") # Place the dropdown on the canvas
-
-def create_checkbox(x_position, y_position, text, var):
-    checkbox = tk.Checkbutton(root, text=text, variable=var, font=("Arial", 10), bg="white", fg="black")
-    checkbox.place(x=x_position, y=y_position)
-    return checkbox
+    if purpose_dropdown.get() == "Corpus":
+        switch_to_checkbox()
+    elif purpose_dropdown.get() == "Specific purpose":
+        print(f"S P :Just before switch {purpose_dropdown.get()}")
+        switch_to_entry()
+    else:
+        print ("G P")
+        current_widget.pack_forget()
+        if isinstance(current_widget, tk.Entry):
+            current_widget.delete(0, "end")
+        current_widget.config(state="disabled")
 
 def UI_back(app_root):
     global root, ifsc_value, bank_value, pay_branch_entry, chq_date, chq_date_label, canvas2 , canvas, IFSC, narration_entry, cheque_entry, biller_entry, invoice_entry, gst_pan_entry, payee, bank_entry,branch_entry, ifsc_Payee_entry, dig_sign_entry, purpose_dropdown, checkbox_var, checkbox, current_widget, handle_selection
@@ -298,7 +279,34 @@ def UI_back(app_root):
     bold_underline_font = font.Font(family="Arial", size=10, weight="bold", underline=1)
     label = tk.Label(root, text="Payment Details:", font=bold_underline_font, bg="white", fg="black")
     canvas2.create_window(150, y_payment_details, window=label, anchor="w") 
-    y_payment_details += 50
+    y_payment_details += 20
+    # Purpose 
+    checkbox_var = tk.IntVar()
+    dropdown_values = ["Corpus", "General Donation", "Specific purpose"]     # Dropdown values and Combobox setup
+    purpose_dropdown = ttk.Combobox(root, values=dropdown_values, state="readonly", font=("Arial", 10), width=20)
+    purpose_dropdown.set("Specific purpose")  # Set the default selection
+    purpose_dropdown.bind("<<ComboboxSelected>>", handle_selection) 
+    # Canvas to place the dropdown
+    canvas2.create_window(5, y_payment_details, window=purpose_dropdown, anchor="nw") # Place the dropdown on the canvas
+
+    current_widget = tk.Entry(root, bd=2, highlightthickness=2, highlightbackground="gray", highlightcolor="blue", width=28)
+    current_widget.bind("<KeyRelease>", lambda event: limit_characters(current_widget, 25))
+    current_widget.pack(pady=10)
+    canvas2.create_window(180, y_payment_details, window=current_widget, anchor="nw")
+    y_payment_details += 45
+
+    #Narration
+    label = tk.Label(root, text="Narration:", font=("Arial", 10), bg="white", fg="black")
+    # Add the label to the canvas
+    canvas2.create_window(5, y_payment_details, window=label, anchor="w")  # Adjusted position
+    y_payment_details += 20
+    # Create an entry field
+    narration_entry = tk.Text( root, bd=2, highlightthickness=2, highlightbackground="gray", highlightcolor="blue", font=("Arial", 10), width=40, height=4)
+    narration_entry.pack()
+    character_limit = 100
+    narration_entry.bind("<KeyRelease>", lambda event: limit_characters_text(event, narration_entry, character_limit))
+    canvas2.create_window(65, y_payment_details, window=narration_entry, anchor="w")  # Adjusted position
+    y_payment_details += 55
 
     #Check number
     label = tk.Label(root, text="Cheque#:", font=("Arial", 10), bg="white", fg="black")
@@ -325,27 +333,26 @@ def UI_back(app_root):
     ifsc_value = tk.StringVar()                                 # Create a StringVar for the Entry's value
     ifsc_value.set(cheque_front.IFSC)
     ifsc_label = tk.Label(root, textvariable=ifsc_value, font=("Arial", 9), bg="lightgray", width=12) # Create an entry field
-    canvas2.create_window(60, y_payment_details, window=ifsc_label, anchor="w")
+    canvas2.create_window(45, y_payment_details, window=ifsc_label, anchor="w")
 
     label = tk.Label(root, text="Bank:", font=("Arial", 10), bg="white", fg="black")
-    canvas2.create_window(180, y_payment_details, window=label, anchor="w")   # Add the label to the canvas
+    canvas2.create_window(135, y_payment_details, window=label, anchor="w")   # Add the label to the canvas
     bank_value = tk.StringVar()                                 # Create a StringVar for the Entry's value
     bank_value.set(cheque_front.bank_name_dropdown.get())
     bank_label = tk.Label(root, textvariable=bank_value, font=("Arial", 9), bg="lightgray", width=12) # Create an entry field
-    canvas2.create_window(260, y_payment_details, window=bank_label, anchor="w")
-    y_payment_details += 30
-    
+    canvas2.create_window(175, y_payment_details, window=bank_label, anchor="w")
+
     #Branch name
     label = tk.Label(root, text="Branch:", font=("Arial", 10), bg="white", fg="black")
-    canvas2.create_window(5, y_payment_details, window=label, anchor="w")  
+    canvas2.create_window(265, y_payment_details, window=label, anchor="w")  
     pay_branch_entry = tk.Entry( root, width=10, bd=2, highlightthickness=2, highlightbackground="gray", highlightcolor="blue", font=("Arial", 10) )
-    canvas2.create_window(60, y_payment_details, window=pay_branch_entry, anchor="w")  
+    canvas2.create_window(310, y_payment_details, window=pay_branch_entry, anchor="w")  
 
     # Digital Sigature # Create a font with bold and underline
     label = tk.Label(root, text="Digital Signature:", font=bold_underline_font, bg="white", fg="black")
-    canvas2.create_window(5, 165, window=label, anchor="w")  # Adjusted position
+    canvas2.create_window(400, 165, window=label, anchor="w")  # Adjusted position
     dig_sign_entry = tk.Entry( root, bd=2, highlightthickness=2, highlightbackground="gray", highlightcolor="blue", font=("Arial", 10), width=40 )
-    canvas2.create_window(5, 190, window=dig_sign_entry, anchor="w")  # Adjusted position
+    canvas2.create_window(400, 190, window=dig_sign_entry, anchor="w")  # Adjusted position
 
     x_biller = 360
     x_biller_entry = 410
@@ -418,53 +425,6 @@ def UI_back(app_root):
     canvas2.create_window(x_payee_entry, y_payee, window=ifsc_Payee_entry, anchor="w")
     #ifsc_Payee_entry.bind("<KeyRelease>", update_field_data)
 
-    x_position = 810
-    y_position = 330
-    label = tk.Label(root, text="Expense Type:", font=("Arial", 10), bg="white", fg="black")
-    cheque_front.canvas.create_window(x_position, y_position, window=label, anchor="w")  
-    y_position += 10
-    dropdown_values = excel_con.load_column_values_to_dropdown("ExpenseType")
-    create_dropdowns(dropdown_values,x_position, y_position)
-    y_position += 40
-
-    label = tk.Label(root, text="Classification Code:", font=("Arial", 10), bg="white", fg="black")
-    cheque_front.canvas.create_window(x_position, y_position, window=label, anchor="w") 
-    y_position += 15
-    dropdown_values_cat1 = excel_con.load_column_values_to_dropdown("Payee")
-    create_dropdowns(dropdown_values_cat1, x_position, y_position)
-    y_position += 30
-    dropdown_values_cat2 = excel_con.load_column_values_to_dropdown("Bank")
-    create_dropdowns(dropdown_values_cat2, x_position, y_position)
-    y_position += 30
-    dropdown_values_cat3 = excel_con.load_column_values_to_dropdown("Amount")
-    create_dropdowns(dropdown_values_cat3, x_position, y_position)
-    y_position += 40
-
-    #Classification Code
-    label = tk.Label(root, text="Code:", font=("Arial", 10), bg="white", fg="black")
-    cheque_front.canvas.create_window(x_position, y_position, window=label, anchor="w")  
-    x_right = x_position + 40
-    code_entry = tk.Entry( root, width=10, bd=2, highlightthickness=2, highlightbackground="gray", highlightcolor="blue", font=("Arial", 10) )
-    cheque_front.canvas.create_window(x_right, y_position, window=code_entry, anchor="w")  
-    print(f" Classification Code {code_entry.get()}")
-    x_right += 90
-    y_position -= 15
-    checkbox_var = tk.BooleanVar()
-    create_checkbox(x_right, y_position, "Print", checkbox_var)
-    y_position += 40
-    
-    label = tk.Label(root, text="Description:", font=("Arial", 10), bg="white", fg="black")
-    cheque_front.canvas.create_window(x_position, y_position, window=label, anchor="w") 
-    y_position += 30
-    narration_entry = tk.Text( root, bd=2, highlightthickness=2, highlightbackground="gray", highlightcolor="blue", font=("Arial", 10), width=15, height=2)
-    narration_entry.pack()
-    character_limit = 100
-    narration_entry.bind("<KeyRelease>", lambda event: limit_characters_text(event, narration_entry, character_limit))
-    cheque_front.canvas.create_window(x_position, y_position, window=narration_entry, anchor="w")  # Adjusted position
-    checkbox_var = tk.BooleanVar()
-    create_checkbox((x_position+130), (y_position-10), "Print", checkbox_var)
-    y_position += 40
-    x_position += 40
     ### Print Button - Create a button
     generate_back_button = tk.Button(root, text="Print - Back", command=generate_cheque_back) 
-    cheque_front.canvas.create_window((x_position+40), y_position, window=generate_back_button, anchor="center") 
+    cheque_front.canvas.create_window(900, 350, window=generate_back_button, anchor="center") 
