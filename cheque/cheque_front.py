@@ -6,8 +6,7 @@ from datetime import datetime
 from tkinter import messagebox
 from cheque import chequeWriter_Canon, format_amount, cheque_back, rtgs_handling, shared, bank_handling
 import cheque.cheque_back
-import cheque.shared
-#import field_data_hdfc
+from cheque.shared import field_data_hdfc
 #from cheque.bank_handling import update_background, image_path
 import os
 import sys
@@ -18,11 +17,11 @@ def cancel_check(cheque_image, draw, font_large):
     text_img = Image.new("RGBA", (400, 180), (255, 255, 255, 0))  # Transparent background for text
     text_draw = ImageDraw.Draw(text_img)
     # First slanting line
-    draw.line([0, 200, 600, 0], fill=cheque.shared.font_color, width=2)
+    draw.line([0, 200, 600, 0], fill="black", width=2)
     #draw.text((90, y_position), f" {payee_with_star}", font=font_small, fill=(0, 0, 0))
-    text_draw.text((200, 80), text="CANCELLED", font=font_large, fill=cheque.shared.font_color)
+    text_draw.text((200, 80), text="CANCELLED", font=font_large, fill="black")
     # Second slanting line
-    draw.line([600, 50, 50, 240], fill=cheque.shared.font_color, width=2)
+    draw.line([600, 50, 50, 240], fill="black", width=2)
     rotated_text = text_img.rotate(20, expand=True)
     # Get the size of the rotated text image
     rotated_width, rotated_height = rotated_text.size
@@ -70,12 +69,12 @@ def cross_check(bank_name, cheque_image, draw):
     except IOError:
         font = ImageFont.load_default()  # Fallback to default if the font is not found
     # Optionally add slanted text
-    #text_color = (0, 0, 0)  # Black color for text
+    text_color = (0, 0, 0)  # Black color for text
     font = ImageFont.load_default()  # Use a default font (you can also use a custom font)
     
     text_draw = ImageDraw.Draw(text_img)
     # Draw the text on the new image
-    text_draw.text((x_AC, 0), "A/C Payee", font=font, fill=cheque.shared.font_color)  
+    text_draw.text((x_AC, 0), "A/C Payee", font=font, fill=text_color)  
 
     # Rotate the text image to make it slanted (e.g., 45 degrees)
     rotated_text = text_img.rotate(45, expand=True)
@@ -215,12 +214,14 @@ def toggle_action(selected_button, all_buttons):
                     cross = 1
                     cancel = 0
                     # First slanting line
-                    line1 = canvas.create_line(0, 50, 50, 0, fill=cheque.shared.font_color, width=1)
-                    text = canvas.create_text(30, 30, text="A/C Payee", font=(cheque.shared.font_name, cheque.shared.font_size_small), fill=cheque.shared.font_color, angle=45)
+                    line1 = canvas.create_line(0, 50, 50, 0, fill="black", width=1)
+                    text = canvas.create_text(30, 30, text="A/C Payee", font=("Helvetica", 8), fill="black", angle=45)
                     # Second slanting line
-                    line2 = canvas.create_line(0, 70, 70, 0, fill=cheque.shared.font_color, width=1)
+                    line2 = canvas.create_line(0, 70, 70, 0, fill="black", width=1)
                     #Bearer
-                    bearer = canvas.create_text(730, 76, text="XXXXXXXXXX", font=(cheque.shared.font_name, cheque.shared.font_size), fill=cheque.shared.font_color)
+                    #bearer = canvas.create_text(730, 76, text="XXXXXXXXXX", font=("Helvetica", 10), fill="black")
+                    bearer = canvas.create_text(730, 90, text="XXXXXXXXXX", font=("Helvetica", 10), fill="black")
+
                     if 'text_cancel' in globals():
                         canvas.delete(line1_cancel, text_cancel, line2_cancel)
                     print(f"cross is set to {cross}")
@@ -229,10 +230,10 @@ def toggle_action(selected_button, all_buttons):
                     cancel = 1
                     cross = 0
                     # First slanting line
-                    line1_cancel = canvas.create_line(0, 250, 750, 0, fill=cheque.shared.font_color, width=2)
-                    text_cancel = canvas.create_text(400, 150, text="CANCELLED", font=(cheque.font_name, cheque.font_large), fill=cheque.shared.font_color, angle=20)
+                    line1_cancel = canvas.create_line(0, 250, 750, 0, fill="black", width=2)
+                    text_cancel = canvas.create_text(400, 150, text="CANCELLED", font=("Helvetica", 16), fill="black", angle=20)
                     # Second slanting line
-                    line2_cancel = canvas.create_line(800, 50, 50, 300, fill=cheque.shared.font_color, width=2)
+                    line2_cancel = canvas.create_line(800, 50, 50, 300, fill="black", width=2)
                     if 'text' in globals():
                         canvas.delete(line1, text, line2, bearer)
                     payee_entry.delete(0, tk.END)
@@ -301,7 +302,7 @@ def create_label_and_button(canvas, x, y, text, all_buttons):
     """Create a label and a toggle button dynamically."""
     # Create the label
     if root is not None:
-        label = tk.Label(root, text=text, font=("Arial", 10), bg="white", fg=cheque.shared.font_color)
+        label = tk.Label(root, text=text, font=("Arial", 10), bg="white", fg="black")
         canvas.create_window(x, y, window=label, anchor="center")
         # Create the toggle button
         toggle_button = tk.Button( root, text="OFF", bg="orange", fg="white", width=3, height=1,
@@ -335,13 +336,15 @@ def UI_front(app_root):
 
     #Amount
     amount_entry = tk.Entry(root, font=("Arial", 10), width=10)
-    entry_window = canvas.create_window(680, 124, window=amount_entry, anchor="center")
+    #entry_window = canvas.create_window(680, 124, window=amount_entry, anchor="center")
+    entry_window = canvas.create_window(680, 140, window=amount_entry, anchor="center")
     #field_data.update({'amount': amount_entry.get()})
 
     # Create a DateEntry widget using tkcalendar
     date_entry = DateEntry(root, width=20, font=("Arial", 10))
     date_entry.bind("<<DateEntrySelected>>", cheque_back.update_chq_date)
-    canvas.create_window(680, 25, window=date_entry, anchor="center")
+    #canvas.create_window(680, 25, window=date_entry, anchor="center")
+    canvas.create_window(680, 30, window=date_entry, anchor="center")
 
     # Create a dropdown list (Combobox)
     dropdown_values = ["HDFC Bank", "Karnataka Bank", "Canara Bank", "Union Bank"]
