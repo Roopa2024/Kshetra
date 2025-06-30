@@ -121,21 +121,20 @@ def draw_kar(c, field_data):
 def draw_canara(c, field_data):
     # Position and text to fill based on field names (you may need to adjust the coordinates)
     for field, value in field_data.items():
-        #add space between each letter
-        spaced_value = "   ".join(str(value)) if isinstance(value, (str, int)) else value
-        # Manually specify the x, y positions of the fields
+        spaced_value = "    ".join(str(value)) if isinstance(value, (str, int)) else value
         if field == 'date':
             spaced_value = "    ".join(str(value)) if isinstance(value, (str, int)) else value
-            c.drawString(405, 750, spaced_value)
+            c.drawString(422, 760, spaced_value)
         if field == 'PAN':
-            c.drawString(385, 720, spaced_value)
+            spaced_value = "    ".join(str(value)) if isinstance(value, (str, int)) else value
+            c.drawString(393, 735, spaced_value)
         elif field == 'bank_br':
-            c.drawString(50, 730, value)
+            c.drawString(50, 740, value)
         elif field == 'amount':
-            c.drawString(230, 690, value)
+            c.drawString(235, 710, value)
         elif field == 'in_words':
             #c.drawString(400, 330, value)  
-            y = 690 
+            y = 710
             wrapper = textwrap.TextWrapper(width=30)
             lines = wrapper.wrap(value)
             # Split into exactly 2 lines
@@ -145,20 +144,21 @@ def draw_canara(c, field_data):
             else:
                 first_line = lines[0]
                 second_line = ""
-            c.drawString(390, y, first_line)
-            c.drawString(60, y - 15, second_line)
+            c.drawString(395, y, first_line)
+            c.drawString(60, y - 11, second_line)
         elif field == 'acct_num':
-            c.drawString(160, 585, spaced_value)
+            c.drawString(165, 615, spaced_value)
         elif field == 'chq_num':
-            c.drawString(160, 565, spaced_value)
+            c.drawString(160, 595, spaced_value)
         elif field == 'chq_date':
-            c.drawString(395, 565, spaced_value)
+            spaced_value = "   ".join(str(value)) if isinstance(value, (str, int)) else value
+            c.drawString(405, 598, spaced_value)
         elif field == 'cust_name':
-            c.drawString(160, 550, spaced_value)    
+            c.drawString(160, 580, spaced_value)    
         elif field == 'addr_remitter':
-            c.drawString(160, 530, spaced_value)
+            c.drawString(160, 560, spaced_value)
         elif field == 'mobile':
-            c.drawString(160, 495, spaced_value)
+            c.drawString(378, 510, spaced_value)
         elif field == 'ben_name':
             c.drawString(160, 465, spaced_value)
         elif field == 'ben_acct_num':
@@ -185,12 +185,14 @@ def draw_union(c, field_data):
         if field == 'bank_br':
             c.drawString(210,645, value)
         elif field == 'acct_num':
+            spaced_value = "    ".join(str(value)) if isinstance(value, (str, int)) else value
             c.drawString(290, 575, spaced_value)
         elif field == 'cust_name':
             c.drawString(190, 560, spaced_value)
         elif field == 'mobile':
             c.drawString(210,545, spaced_value)    
         elif field == 'PAN':
+            spaced_value = "    ".join(str(value)) if isinstance(value, (str, int)) else value
             c.drawString(120, 530, spaced_value)
         elif field == 'amount':
             c.drawString(120,503, spaced_value)
