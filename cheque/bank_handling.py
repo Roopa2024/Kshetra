@@ -8,6 +8,9 @@ from cheque.shared import field_data_hdfc
 import os, sys
 IFSC = "HDFC0004012"
 
+#global base_path
+#image_path = os.path.join(base_path, 'Images','HDFC.png')
+
 def set_base_path():
     global base_path, image_path, hdfc_path, karnataka_path, canara_path, union_path, font_small, font_small10, font_small11, rtgs_path, rtgs_filled
     if getattr(sys, 'frozen', False):
@@ -18,12 +21,12 @@ def set_base_path():
         base_path = os.path.dirname(os.path.abspath(__file__))
 
     # Accessing an external file 
-    hdfc_path = os.path.join(base_path, 'Images','HDFC.png')
+    hdfc_path = os.path.join(base_path, 'Images','HDFC.jpg')
     image_path = hdfc_path
-    karnataka_path = os.path.join(base_path, 'Images','Karnataka.png')
-    canara_path = os.path.join(base_path, 'Images','Canara.png')
-    union_path = os.path.join(base_path, 'Images','Union.png')
-    rtgs_path = os.path.join(base_path, 'Images','RTGS_HDFC_new.pdf')
+    karnataka_path = os.path.join(base_path, 'Images','Karnataka.jpg')
+    canara_path = os.path.join(base_path, 'Images','Canara.jpg')
+    union_path = os.path.join(base_path, 'Images','Union.jpg')
+    rtgs_path = os.path.join(base_path, 'Images','RTGS_HDFC.pdf')
     rtgs_filled = os.path.join(base_path, 'Images','RTGS_HDFC_filled.pdf')
     #print(f"Image path {hdfc_path}")
 
@@ -45,13 +48,13 @@ def update_background(event, canvas):
     selected_bank = cheque_front.bank_name_dropdown.get()
     print(f" background is {selected_bank}")
     if selected_bank == "HDFC Bank":
-        hdfc_path = os.path.join(base_path, 'Images','HDFC.png')
+        hdfc_path = os.path.join(base_path, 'Images','HDFC.jpg')
         image_path = hdfc_path
         IFSC = "HDFC0004012"
-        rtgs_path = os.path.join(base_path, 'Images','RTGS_HDFC_new.pdf')
+        rtgs_path = os.path.join(base_path, 'Images','RTGS_HDFC.pdf')
         rtgs_filled = os.path.join(base_path, 'Images','RTGS_HDFC_filled.pdf')
     elif selected_bank == "Karnataka Bank":
-        karnataka_path = os.path.join(base_path, 'Images','Karnataka.png')
+        karnataka_path = os.path.join(base_path, 'Images','Karnataka.jpg')
         rtgs_filled = os.path.join(base_path, 'Images','RTGS_KAR_filled.pdf')
         rtgs_path = os.path.join(base_path, 'Images','RTGS_KAR.pdf')
         image_path = karnataka_path
@@ -88,9 +91,7 @@ def get_updated_field_data(field_data):
     field_data.update({'chq_num': cheque_back.cheque_entry.get()})
     field_data.update({'ben_name': cheque_back.payee.get()})
     field_data.update({'ifsc_code': cheque_back.ifsc_Payee_entry.get()})
-    cheque_back_instance = cheque_back.ChequeBack()
-
-    if isinstance(cheque_back_instance.current_widget, tk.Entry):
+    if isinstance(cheque_back.current_widget, tk.Entry):
         field_data.update({'purpose': cheque_back.current_widget.get()})
     else:
         field_data.update({'purpose': cheque_back.purpose_dropdown.get()})
@@ -115,7 +116,8 @@ def get_updated_field_data(field_data):
             formatted_date = date_obj.strftime("%d.%m.%Y")
 
         field_data.update({'chq_date': formatted_date})
-        field_data.update({'PAN': cheque_back.gst_pan_entry.get()})
+        #PAN is commented out temporarily 29-06-2025
+        #field_data.update({'PAN': cheque_back.gst_pan_entry.get()})
         field_data.update({'bank_name': cheque_back.bank_entry.get()})
         field_data.update({'ben_bank_br': cheque_back.branch_entry.get()})
 
