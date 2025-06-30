@@ -2,17 +2,21 @@ import tkinter as tk
 from tkinter import messagebox
 import pandas as pd
 from openpyxl import load_workbook
-import re
-import cheque.shared
+import re, sys, os
 
-file_name = cheque.shared.xcl_file 
-sheet_name = cheque.shared.xcl_sheet 
+file_path = "Images/cheque_data.xlsx"
+
+def resource_path(rel_path):
+    base = getattr(sys, "_MEIPASS", os.path.abspath(os.path.dirname(__file__)))
+    return os.path.join(base, rel_path)
+
+abs_path = resource_path(file_path)
 
 def increment_counter():
-    wb = load_workbook(file_name)   # Load the workbook and select the sheet
+    wb = load_workbook(abs_path)   # Load the workbook and select the sheet
     sheet = wb.active               # Or use wb['SheetName'] if you have a specific sheet
     last_row = sheet.max_row        # Get the last row number
-    last_value = sheet.cell(row=last_row, column=2).value  # Adjust column index as needed
+    last_value = sheet.cell(row=last_row, column=1).value  # Adjust column index as needed
     print(f"Value is {last_value}")
     match = re.match(r'([a-zA-Z]+)(\d+)', last_value)
     
@@ -33,24 +37,21 @@ def increment_counter():
 def save_to_excel(**kwargs):
     for key, value in kwargs.items():
         print(f"{key}: {value}")
-    data = {key: [value] for key, value in kwargs.items()} # Convert each value in kwargs to a list
+    # Convert each value in kwargs to a list
+    data = {key: [value] for key, value in kwargs.items()}
       
-    df = pd.DataFrame(data) # Convert dictionary to pandas DataFrame
+    # Convert dictionary to pandas DataFrame
+    df = pd.DataFrame(data)
     
     # If the file exists, append the new data to it, else create a new file
     try:
-        existing_df = pd.read_excel(file_name)         # Check if file exists
+        # Check if file exists
+        existing_df = pd.read_excel(abs_path)
         new_df = pd.concat([existing_df, df], ignore_index=True)
-        new_df.to_excel(file_name, index=False)
+        new_df.to_excel(abs_path, index=False)
     except FileNotFoundError:
-        df.to_excel(file_name, index=False)         # Create a new Excel file if it does not exist
+        # Create a new Excel file if it does not exist
+        df.to_excel(abs_path, index=False)
 
+    # Show success message
     messagebox.showinfo("Success", "Data saved successfully to Excel!")
-
-def load_column_values_to_dropdown(column_name):
-    df = pd.read_excel(file_name, sheet_name)      # Read the spreadsheet and load the column values
-    if column_name not in df.columns:     # Ensure the column exists in the DataFrame
-        raise ValueError(f"Column '{column_name}' not found in the sheet '{sheet_name}'")
-        
-    dropdown_values = df[column_name].dropna().tolist()  # Drop any NaN values and convert to list
-    return dropdown_values
