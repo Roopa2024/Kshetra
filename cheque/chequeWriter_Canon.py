@@ -7,14 +7,13 @@ from cheque import cheque_front, excel_con, cheque_back, bank_handling
 import cheque.cheque_front
 import cheque.rtgs_handling
 import os, sys
-import configparser
 
 import win32api
 import win32print
 import win32ui
 import ctypes
 from ctypes import wintypes
-
+    
 # Function to print the generated Cheque
 def print_cheque(cheque_image_path):
     printer_name = win32print.GetDefaultPrinter()  # Get default printer
