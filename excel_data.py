@@ -25,6 +25,11 @@ pdf_heading = config['Heading']['pdf_heading']
 pdf_headings = pdf_heading.split(',')
 entity_xcl = config.get('Filenames', 'input_files')
 entity_xcls = entity_xcl.split(',')
+entity_mapping_xcl = config.get('Filenames', 'input_mapping_files')
+entity_mapping_xcls = entity_mapping_xcl.split(',')
+
+code_mappings = config.get('Filenames', 'code_mapping_sheet')
+
 try:
     font = ImageFont.truetype(custom_font_path, 20)
 except OSError:
@@ -68,6 +73,22 @@ def increment_counter(index, xcl_path):
     else:
         print("Globe ID not found")
         return None    
+
+def get_trans_type(mapping_path, mode):
+    print(f"MODE is {mode} EXcel is {mapping_path}")
+
+    if not os.path.exists(mapping_path):
+        print(f"File '{mapping_path}' not found.")
+        return
+    df = pd.read_excel(mapping_path, sheet_name=code_mappings, header=0) 
+    mask = df.eq(mode)
+    if not mask.values.any():                                               # Ensure we found at least one match
+        raise ValueError(f"No cell found with value {mode}")
+    row_idx, col_idx = divmod(mask.values.argmax(), mask.shape[1])          # Get first match's row, col indices
+    value = df.iat[row_idx, col_idx + 1]                                    # Get value from the next column                              
+
+    print(value)
+    return value
 
 # Save data to the DB(excel sheet here)
 def save_to_excel(file_path, id, **kwargs):
