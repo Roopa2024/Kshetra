@@ -15,17 +15,30 @@ config.read(config_path)
 
 font_settings = (config.get('FontSettings', 'font_name'), config.getint('FontSettings', 'font_size'))
 entity_xcl = config.get('Filenames', 'input_files')
-dv_entity_xcl = config.get('Filenames', 'voucher_input_files')
-mapping = config.get('Filenames', 'mapping_sheet')
 entity_xcls = entity_xcl.split(',')
-dv_entity_xcls = dv_entity_xcl.split(',')
+entity_mapping_xcl = config.get('Filenames', 'input_mapping_files')
+entity_mapping_xcls = entity_mapping_xcl.split(',')
+voucher_entity_xcl = config.get('Filenames', 'voucher_input_files')
+voucher_entity_xcls = voucher_entity_xcl.split(',')
+voucher_mapping_xcl = config.get('Filenames', 'voucher_mapping_files')
+voucher_mapping_xcls = voucher_mapping_xcl.split(',')
+invoice_entity_xcl = config.get('Filenames', 'invoice_input_files')
+invoice_entity_xcls = invoice_entity_xcl.split(',')
+invoice_mapping_xcl = config.get('Filenames', 'invoice_mapping_files')
+invoice_mapping_xcls = invoice_mapping_xcl.split(',')
+
+#Mapping sheet name
+mapping = config.get('Filenames', 'mapping_sheet')
+
 width = config.getint('FontSettings', 'width')
 pdf_heading = config['Heading']['pdf_heading']
 pdf_headings = pdf_heading.split(',')
 entity = pdf_heading.split(',')
-dv_pdf_heading = config['Heading']['dv_pdf_heading']
-dv_pdf_headings = dv_pdf_heading.split(',')
-dv_entity = dv_pdf_heading.split(',')
+voucher_pdf_heading = config['Heading']['voucher_pdf_heading']
+#voucher_pdf_headings = voucher_pdf_heading.split(',')
+voucher_entity = voucher_pdf_heading.split(',')
+invoice_pdf_heading = config['Heading']['invoice_pdf_heading']
+invoice_entity = invoice_pdf_heading.split(',')
 copy_type = config['Heading']['copy_type']
 copy_types = copy_type.split(',')
 xcl_sheet = config.get('Filenames', 'xcl_sheet')
@@ -77,7 +90,9 @@ def update_amount_in_words(entry_widget, text_widget):
     text_widget.configure(state="disabled")
 
 def get_excel_file(selected_idx):
-    excel_path = resource_path(entity_xcls[selected_idx]) #0])
+    excel_path = resource_path(entity_xcls[selected_idx])
+    excel_mapping_path = resource_path(entity_mapping_xcls[selected_idx])
+
     file_name = os.path.basename(excel_path)
     dest_excel_path = f"excel/{file_name}"
     if not os.path.exists(dest_excel_path):
@@ -86,7 +101,7 @@ def get_excel_file(selected_idx):
         print(f"Copied {excel_path} to {dest_excel_path}")
     else:
         print(f"Excel File already exists. {dest_excel_path}")
-    return dest_excel_path
+    return dest_excel_path,excel_mapping_path
 
 # Function to get dropdown values from the Excel sheet
 def get_dropdown_values(file_path, sheet_name, column_name):
@@ -108,6 +123,16 @@ def get_dropdown_values(file_path, sheet_name, column_name):
         if sheet.cell(row=i, column=col_index).value is not None
     ]
     return values
+
+def UI_amount_in_words(frame, entry, row_offset, width):
+    entry.bind("<KeyRelease>", lambda event, e=entry: update_amount_in_words(e, amount_in_words_text))
+    # Add amount in words field below
+    #row_offset = len(fields)
+    tk.Label(frame, text="Amount in Words:", font=font_settings, bg="#99ccff").grid(row=row_offset, column=0, sticky="w", pady=5)
+    amount_in_words_text = tk.Text(frame, font=font_settings, height=2, wrap="word", width=width)
+    amount_in_words_text.grid(row=row_offset, column=1, padx=5, pady=5, sticky="ew")
+    amount_in_words_text.configure(state="disabled")
+    return amount_in_words_text
 
 input_vars = {}                                                                     # Store variables for later access
 # Function to add widgets dynamically to each group
@@ -151,18 +176,11 @@ def add_widgets_to_group(frame, fields):
         input_vars[label] = entry
 
         if label == "Amount:":
-            entry.bind("<KeyRelease>", lambda event, e=entry: update_amount_in_words(e, amount_in_words_text))
-
-            # Add amount in words field below
-            row_offset = len(fields)
-            tk.Label(frame, text="Amount in Words:", font=font_settings, bg="#99ccff").grid(row=row_offset, column=0, sticky="w", pady=5)
-            amount_in_words_text = tk.Text(frame, font=font_settings, height=2, wrap="word", width=60)
-            amount_in_words_text.grid(row=row_offset, column=1, padx=5, pady=5, sticky="ew")
-            amount_in_words_text.configure(state="disabled")
+            amount_in_words_text = UI_amount_in_words(frame, entry, len(fields), 60)
             input_vars["Amount in Words:"] = amount_in_words_text
 
 def generate_excel_file(selected_entity):
-    print("generate_excel_file")
+    print(f"generate_excel_file {selected_entity}")
     entity_path = resource_path(selected_entity)
     file_name = os.path.basename(entity_path)
     dest_excel_path = f"excel/{file_name}"
@@ -183,7 +201,6 @@ def get_cheque_data(voucher):
             
     if cheque_no:
         cheque_no_val = cheque_no.get()
-        print(f"Cheque NO is {cheque_no_val} {cheque_date.get()} {cheque_IFSC.get()} {cheque_AC_no.get()}")
     else:
         cheque_no_val = ''
     return cheque_date.get(), cheque_no_val, cheque_IFSC.get(), cheque_AC_no.get()
@@ -193,15 +210,17 @@ def get_eft_data(voucher):
     eft_data = voucher.get('eft', {})
     eft_date = eft_data.get('Bank Date:')
     utrn = eft_data.get("UTRN:")
+    eft_IFSC = eft_data.get('IFSC Code:')
     bank_name = eft_data.get('Bank Name:')
     bank_branch = eft_data.get('Bank Branch:')
 
     if utrn:
         utrn_val = utrn.get()
+        ifsc = eft_IFSC.get()
         bank = bank_name.get()
         branch = bank_branch.get()
     
-    return eft_date.get(), utrn_val, bank, branch
+    return eft_date.get(), utrn_val, ifsc, bank, branch
 
 
 def delete_last_n_rows(file_path, n, sheet_name):
@@ -239,6 +258,14 @@ def clear_voucher_fields(voucher):
                 widget.set('')
             elif hasattr(widget, 'set'):
                 widget.set('')
+            elif isinstance(widget, tk.Text):
+                current_state = widget.cget("state")
+                if current_state == "disabled":
+                    widget.configure(state="normal")
+                    widget.delete("1.0", tk.END)
+                    widget.configure(state="disabled")
+                else:
+                    widget.delete("1.0", tk.END)
 
             # Clear readonly Entry bound to StringVar (e.g., 'exp_type')
             expense_entry = voucher['exp_type']
@@ -250,7 +277,7 @@ def clear_voucher_fields(voucher):
             expense_entry.config(state="readonly")
 
             if isinstance(voucher['payment_mode'], tk.StringVar):
-                voucher['payment_mode'].set('Cash')  # Unselect all
+                voucher['payment_mode'].set('Cash') # = 'Cash'  # Unselect all
         except Exception as e:
             print(f"Error clearing field {key}: {e}")
 
@@ -263,25 +290,52 @@ def get_user(amount):
         authoriser = ''
         return
 
-def voucher_print(voucher_entries, selected_indx, checkbox_var, selected_option, cheque_frame, online_frame):
-    dest_excel_path = generate_excel_file(dv_entity_xcls[selected_indx])
-    print (f"dest excel file is {dest_excel_path}")
+def voucher_print(path, mapping_voucher_path, voucher_entries, selected_indx, checkbox_var, selected_option, cheque_frame, online_frame):
+    dest_excel_path = generate_excel_file(path) #voucher_entity_xcls[selected_indx])
+    print(f"DEST EXCEL {dest_excel_path}")
+    if 'invoice' in dest_excel_path:
+        mode = selected_option.get()
+    else:
+        for index, var in selected_option.items():
+            selected_option[index].set(var.get())
+            print(f"1. VAR = {var} and selection is set to {selected_option[index]}")
 
-    entity_name = os.path.splitext(dv_entity[selected_indx])[0]                        # Update kwargs with QR Code path
-    os.makedirs(f"pdfs/{entity_name}", exist_ok=True) 
-    
     for i, voucher in enumerate(voucher_entries):
-        cheque_date, cheque_no_val, cheque_IFSC, cheque_AC_no, eft_date, utrn_val, bank_name, bank_branch = '', '', '', '','','','',''
+        #cheque_date, cheque_no_val, cheque_IFSC, cheque_AC_no, eft_date, utrn_val, bank_name, bank_branch = '', '', '', '','','','',''
+        inst_date, inst_no_val, IFSC, inst_AC_no, bank_name, bank_branch = '', '', '', '','','',
         inst_voucher_date, inst_voucher_num = '', ''
+        pan_entry = voucher.get('pan')
+        if hasattr(pan_entry, 'get'):
+            pan = pan_entry.get()
+        else:
+            pan = ''
+        inv_entry = voucher.get('inv_no')
+        if hasattr(inv_entry, 'get'):
+            inv_no = inv_entry.get()
+        else:
+            inv_no = ''
+
         voucher_date = voucher['date'].get()
         pay_to = voucher['pay_to'].get()
         amount = voucher['amount'].get()
-        pan = voucher['pan'].get()
-        addr = voucher['addr'].get()
+        #pan = voucher['pan'].get()
+        if 'invoice' in path:
+            addr_text = voucher['addr']  # Your Text widget
+            addr = addr_text.get("1.0", "end-1c")
+            challan = voucher['challan'].get()
+            cert = voucher['cert'].get()
+            CIN = challan + ' ' + cert
+            print(f"CIN is {CIN} MODE is {mode}")
+            #mode = voucher['payment_mode']
+        else:
+            addr = voucher['addr'].get()
+            CIN = ''
+            mode = voucher['payment_mode'].get()
+            #mode = selected_option[i].get()
+
         pur_code = voucher['pur_code'].get()
         pur_head = voucher['pur_head'].get()
         pur_cat = voucher['pur_cat'].get()
-        mode = voucher['payment_mode'].get()
         exp_type = voucher['exp_type'].get()
 
         if not amount:
@@ -296,10 +350,12 @@ def voucher_print(voucher_entries, selected_indx, checkbox_var, selected_option,
             cheque_date, cheque_no_val, cheque_IFSC, cheque_AC_no = get_cheque_data(voucher)
             inst_voucher_date = cheque_date
             inst_voucher_num = cheque_no_val
+            IFSC = cheque_IFSC
         elif mode == "EFT":
-            eft_date, utrn_val, bank_name, bank_branch = get_eft_data(voucher)
+            eft_date, utrn_val, eft_ifsc, bank_name, bank_branch = get_eft_data(voucher)
             inst_voucher_date = eft_date
             inst_voucher_num = utrn_val
+            IFSC = eft_ifsc
 
         id, globe_id, bar_text = excel_data.increment_counter(selected_indx, dest_excel_path) 
         date = datetime.datetime.now()
@@ -308,20 +364,29 @@ def voucher_print(voucher_entries, selected_indx, checkbox_var, selected_option,
         barcode_path = excel_data.generate_barcode(str(globe_id))   #barcode is temporarily saved in the current dir
         excel_data.draw_text(f"{barcode_path}.png", bar_text) 
 
+        if 'invoice' in dest_excel_path:
+            voucher_no = inv_no
+        else:
+            voucher_no = globe_id
+
+        print(f"VOUCHER Mode = {mode}")
+        trans_type = excel_data.get_trans_type(mapping_voucher_path, mode)
+
         #the col header and order here should be an exact match with the excel.
         kwargs = {
             'Id.' : id,
             'Payee Name' : pay_to,
             'Address': addr,
             'Amount' : amount,
-            'Voucher No.' : globe_id, 
+            'Voucher No.' : voucher_no, 
             'Voucher Date' : voucher_date,
             'Payment Mode': mode,
+            'Transaction Type': trans_type,
             'Bank Realisation Date' : '',
             'Inst. Date': inst_voucher_date,
             'Inst. No': inst_voucher_num,
-            'IFSC': cheque_IFSC,
-            'Account No': cheque_AC_no,
+            'IFSC': IFSC,
+            'Account No': inst_AC_no,
             'Bank Name': bank_name,
             'Bank Branch': bank_branch,
             'Payee PAN No' : pan,
@@ -329,7 +394,7 @@ def voucher_print(voucher_entries, selected_indx, checkbox_var, selected_option,
             'GST Stat' : '',
             'GST CPIN' : '',
             'TDS Stat' : '',
-            'TDS CIN' : '',
+            'TDS CIN' : CIN,
             'Expense ID' : '',
             'Globe ID' : globe_id,
             'Globe Stat' : '',
@@ -347,16 +412,41 @@ def voucher_print(voucher_entries, selected_indx, checkbox_var, selected_option,
             'QR Code' : '',
         }
 
-        print(kwargs)
+        #print(kwargs)
         excel_data.save_to_excel(dest_excel_path, id, **kwargs)
-        
-    pdf_path = f"pdfs/{entity_name}/{kwargs['Id.']}.pdf"
-    pdf_data.create_pdf_from_kwargs_voucher(kwargs, voucher_entries, pdf_path, dv_entity[selected_indx], checkbox_var.get(), dest_excel_path)
+    
+    if 'invoice' in path:
+        selected_entity = invoice_entity[selected_indx]
+    else:
+        selected_entity = voucher_entity[selected_indx]
+
+    entity_name = os.path.splitext(selected_entity)[0]       
+    os.makedirs(f"data/pdfs/{entity_name}", exist_ok=True) 
+    pdf_path = f"data/pdfs/{entity_name}/{kwargs['Id.']}.pdf"
+    print(f"PDF PATH {pdf_path} entity_name = {entity_name} and selected = {selected_entity}")
+    
+    pdf_data.create_pdf_from_kwargs_voucher(kwargs, voucher_entries, pdf_path, selected_entity, checkbox_var.get(), dest_excel_path, selected_indx, trans_type, mode)
+    
     for i, voucher in enumerate(voucher_entries):
         clear_voucher_fields(voucher)
     
-    for key, var in selected_option.items():
-        var.set('Cash')
+    if 'invoice' in path:
+        selected_option.set('Cash')
+        cheque_frame.grid() if selected_option == "Cheque" else cheque_frame.grid_remove()
+        online_frame.grid() if selected_option == "EFT" else online_frame.grid_remove()
+        print(f'RESET PAYMENT MODE  = {selected_option.get()}')
+    else:
+        for index, var in selected_option.items():
+            print (f"RESET for voucher_{index} = {var.get()}")
+            var.set("Cash")
+            #selected_option[index] = tk.StringVar(value="Cash")
+            #selected_value = selected_option[index] #.get()
+            print(f"CLEAR VAR = {var.get()}")
+        #         #selected_value = 'Cash'
+            #voucher_entries['payment_mode'].set(selected_option[index])
+            cheque_frame.grid() if var.get() == "Cheque" else cheque_frame.grid_remove()
+            online_frame.grid() if var.get() == "EFT" else online_frame.grid_remove()
+
     cheque_frame.grid_remove()
     online_frame.grid_remove()
 
@@ -386,7 +476,7 @@ def cancel(selected_indx):
 
 
 # Submit Function
-def submit(selection_var, cheque_vars, online_vars, selected_indx, checkbox_var, cheque_frame, online_frame):   
+def submit(selection_var, cheque_vars, online_vars, selected_indx, checkbox_var, cheque_frame, online_frame, mapping_receipt_path):   
     details = {}
     for label, var in input_vars.items():
         if isinstance(var, tk.StringVar):                       
@@ -446,6 +536,8 @@ def submit(selection_var, cheque_vars, online_vars, selected_indx, checkbox_var,
     barcode_path = excel_data.generate_barcode(str(globe_id))   #barcode is temporarily saved in the current dir
     excel_data.draw_text(f"{barcode_path}.png", bar_text)       #adding TextColumn to the barcode
 
+    trans_type = excel_data.get_trans_type(mapping_receipt_path, selection_var.get())
+
     #the col header and order here should be an exact match with the excel.
     kwargs = {
         'Id.' : id,
@@ -459,6 +551,7 @@ def submit(selection_var, cheque_vars, online_vars, selected_indx, checkbox_var,
         'Contributor Type' : details.get("Contribution Type:"),
         'Contributor Intent' : details.get("Contribution Intent:"),
         'Payment Mode' : payment_mode,
+        'Transaction Type' : trans_type,
         'Bank Realisation Date' : '',
         'Inst. Date' : inst_date,
         'Inst. No' : inst_num, 
@@ -481,10 +574,10 @@ def submit(selection_var, cheque_vars, online_vars, selected_indx, checkbox_var,
     excel_data.save_to_excel(dest_excel_path, id, **kwargs)
 
     qr_code_path = excel_data.generate_qr_code(kwargs)
-    kwargs["QR Code"] = qr_code_path       
-    entity_name = os.path.splitext(entity[selected_indx])[0]                        # Update kwargs with QR Code path
-    pdf_path = f"pdfs/{entity_name}/{kwargs['Id.']}.pdf"
-    os.makedirs(f"pdfs/{entity_name}", exist_ok=True)
+    kwargs["QR Code"] = qr_code_path                                                           # Update kwargs with QR Code path
+    entity_name = os.path.splitext(entity[selected_indx])[0]                        
+    pdf_path = f"data/pdfs/{entity_name}/{kwargs['Id.']}.pdf"
+    os.makedirs(f"data/pdfs/{entity_name}", exist_ok=True)
 
     with_bg = checkbox_var.get()
     if with_bg:
@@ -512,7 +605,7 @@ def submit(selection_var, cheque_vars, online_vars, selected_indx, checkbox_var,
     for index, row in df.iterrows():
         row_dict = {df.columns[i]: row.iloc[i] for i in range(len(df.columns))}
         rows_data.insert(id, row_dict) 
-        pdf_name = f"pdfs/{index}.pdf"
+        pdf_name = f"data/pdfs/{index}.pdf"
     workbook.save(dest_excel_path)
 
     for key, widget in cheque_vars.items():     
