@@ -13,10 +13,16 @@ config.read(config_path)
 font_settings = (config.get('FontSettings', 'font_name'), config.getint('FontSettings', 'font_size'))
 font_settings_bold = (config.get('FontSettings', 'font_name'), config.getint('FontSettings', 'font_size'), "bold")
 mapping = config.get('Filenames', 'mapping_sheet')
-dv_entity_xcl = config.get('Filenames', 'voucher_input_files')
-dv_entity_xcls = dv_entity_xcl.split(',')
+voucher_entity_xcl = config.get('Filenames', 'voucher_input_files')
+voucher_entity_xcls = voucher_entity_xcl.split(',')
 
-def add_group_4and5(frame, group_frames):
+#Mappings
+voucher_mapping_xcl = config.get('Filenames', 'voucher_mapping_files')
+voucher_mapping_xcls = voucher_mapping_xcl.split(',')
+receipt_mapping_xcl = config.get('Filenames', 'input_mapping_files')
+receipt_mapping_xcls = receipt_mapping_xcl.split(',')
+
+def add_group_4and5(frame, group_frames, mapping_receipt_path):
 
     # Payment Mode Selection
     tk.Label(group_frames["group4_frame"], text="Payment Mode:", font=font_settings_bold, bg="#99ccff").grid(row=3, column=0, sticky="w", pady=5)
@@ -84,7 +90,7 @@ def add_group_4and5(frame, group_frames):
     online_frame.grid(row=2, column=1, rowspan=2, padx=50, pady=20, sticky="nsew")
 
     voucher.include_bg(group_frames["group5_frame"], checkbox_var)
-    submit_button = tk.Button(group_frames["group5_frame"], text="Print", font=font_settings, command=lambda: UI_support.submit(selection_var, cheque_vars, online_vars, selected_indx, checkbox_var, cheque_frame, online_frame))   # Submit Button
+    submit_button = tk.Button(group_frames["group5_frame"], text="Print", font=font_settings, command=lambda: UI_support.submit(selection_var, cheque_vars, online_vars, selected_indx, checkbox_var, cheque_frame, online_frame, mapping_receipt_path))   # Submit Button
     submit_button.grid(row=2, column=2, padx=10, pady=10) 
     cancel_button = tk.Button(group_frames["group5_frame"], text="Cancel Receipt", font=font_settings, command=lambda: UI_support.cancel(selected_indx))   # Cancel Button
     cancel_button.grid(row=3, column=2, padx=10, pady=10)    
@@ -96,10 +102,10 @@ def add_group_4and5(frame, group_frames):
     toggle_cheque_fields()       
 
 def draw_receipt(frame):
-    dest_excel_path = UI_support.get_excel_file(selected_indx)
-    contribution_types = UI_support.get_dropdown_values(dest_excel_path, mapping, "Contribution Type")         # Load from "ContributionType" sheet
-    contribution_intents = UI_support.get_dropdown_values(dest_excel_path, mapping, "Contribution Intent")     # Load from "ContributionIntent" sheet
-
+    dest_excel_path, excel_mapping_path = UI_support.get_excel_file(selected_indx)
+    contribution_types = UI_support.get_dropdown_values(excel_mapping_path, mapping, "Contribution Type")         # Load from "ContributionType" sheet
+    contribution_intents = UI_support.get_dropdown_values(excel_mapping_path, mapping, "Contribution Intent")     # Load from "ContributionIntent" sheet
+    mapping_receipt_path = receipt_mapping_xcls[selected_indx]
     # Define variables to store selected values
     contribution_type_var = tk.StringVar(value=contribution_types[0] if contribution_types else "")
     contribution_intent_var = tk.StringVar(value=contribution_intents[0] if contribution_intents else "")
@@ -150,7 +156,7 @@ def draw_receipt(frame):
         if fields:
             UI_support.add_widgets_to_group(frame, fields)
      
-    add_group_4and5(frame, group_frames)
+    add_group_4and5(frame, group_frames, mapping_receipt_path)
 
 def load_mapping_from_excel(file_path, sheet_name="Sheet5"):
     df = pd.read_excel(file_path, sheet_name=sheet_name)
@@ -173,6 +179,7 @@ class App:
         buttons = [
             ("Receipt", "Receipt"),
             ("Voucher", "Voucher"),
+            ("Invoice Voucher", "Invoice Voucher"),
         ]
 
         # Step 1: Configure nav_frame columns to expand equally
@@ -184,6 +191,7 @@ class App:
         # Build pages
         self.build_page1()
         self.build_page2()
+        self.build_page3()
 
         # Show first
         self.show_frame("Receipt")
@@ -195,14 +203,22 @@ class App:
         self.current_frame = name
 
     def build_page1(self):
+        print("STARTING RECEIPT.....")
         frame = tk.Frame(self.root,  bg="white")
         draw_receipt(frame)      
         self.frames["Receipt"] = frame
 
     def build_page2(self):
+        print('STARTING VOUCHER.....')
         frame = tk.Frame(self.root,  bg="white")
         voucher.draw_voucher(frame, selected_indx, root, checkbox_var)
         self.frames["Voucher"] = frame
+
+    def build_page3(self):
+        print('STARTING INVOICE.....')
+        frame = tk.Frame(self.root,  bg="white")
+        voucher.draw_inv_voucher(frame, selected_indx, root, checkbox_var)
+        self.frames["Invoice Voucher"] = frame
 
 # Run the app
 root = tk.Tk()
