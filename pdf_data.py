@@ -80,9 +80,9 @@ barcode_height = config.getint('top_dimensions', 'barcode_height')
 def get_pdf_directory():
     if hasattr(sys, '_MEIPASS'):    # Running as a bundled .exe
         temp_dir = sys._MEIPASS     # Temporary folder where files are extracted
-        pdf_dir = os.path.join(temp_dir, 'pdfs')  # Target pdfs folder in temp dir
+        pdf_dir = os.path.join(temp_dir, 'data/pdfs')  # Target pdfs folder in temp dir
     else:
-        pdf_dir = 'pdfs'            # Default pdfs directory in current working directory
+        pdf_dir = 'data/pdfs'            # Default pdfs directory in current working directory
     return pdf_dir
 
 # Function to get base path for EXE
@@ -117,7 +117,7 @@ def merge_pdf(entity, new_pdf, pdf_name):
 def generate_duplicates(pdf_path, entity):
     pdf_name = os.path.basename(pdf_path)
     entity_name = os.path.splitext(entity)[0]
-    duplicate_pdf_path_acct = os.path.join("Accountant_copy", entity_name, pdf_name)
+    duplicate_pdf_path_acct = os.path.join("data/Accountant_copy", entity_name, pdf_name)
     pdf_dir_acct = os.path.dirname(duplicate_pdf_path_acct)  # Extract the folder path
     os.makedirs(pdf_dir_acct, exist_ok=True)
     shutil.copy(pdf_path, duplicate_pdf_path_acct)
@@ -177,7 +177,6 @@ def create_pdf_from_kwargs(kwargs, pdf_path, entity, with_bg, top_text, bottom_t
                 case 'Payment Mode':
                     canvas_update.draw_payment_mode_tick(c, value, receipt)
                     mode = value
-                    print(f'MODE here is {mode}')
                 case 'IFSC':
                     canvas_update.draw_ifsc(c, value, receipt)
                 case 'Account No.':
@@ -235,7 +234,7 @@ def create_pdf_from_kwargs(kwargs, pdf_path, entity, with_bg, top_text, bottom_t
         pdf_name = os.path.basename(pdf_path)
         entity_name = os.path.splitext(entity)[0]  
         if top_text == bottom_text:
-            duplicate_pdf_path = os.path.join("Office_copy", entity_name, pdf_name)
+            duplicate_pdf_path = os.path.join("data/Office_copy", entity_name, pdf_name)
             merge_pdf(entity, new_pdf, duplicate_pdf_path)
         #print(f"Entity is {entity}")
 
@@ -246,7 +245,7 @@ def create_pdf_from_kwargs(kwargs, pdf_path, entity, with_bg, top_text, bottom_t
                     writer.add_page(page)
                 
                 if pdf:
-                    pdf_path = os.path.join("Accountant_copy", entity_name, pdf_name)
+                    pdf_path = os.path.join("data/Accountant_copy", entity_name, pdf_name)
 
                 with open(str(pdf_path), "wb") as f:                     # Save the final filled PDF
                     writer.write(f)
@@ -259,7 +258,7 @@ def create_pdf_from_kwargs(kwargs, pdf_path, entity, with_bg, top_text, bottom_t
                         os.startfile(absolute_path)
                     else:
                         print("File not found on disk!")
-                duplicate_pdf_path_acct = os.path.join("Accountant_copy", entity_name, pdf_name)
+                duplicate_pdf_path_acct = os.path.join("data/Accountant_copy", entity_name, pdf_name)
                 merge_pdf(entity, new_pdf, duplicate_pdf_path_acct)
         elif with_bg == 1:                                               # print with background
             if top_text != bottom_text:
@@ -274,36 +273,71 @@ def create_pdf_from_kwargs(kwargs, pdf_path, entity, with_bg, top_text, bottom_t
                     print("File not found on disk!")
     print(f"PDF saved: {pdf_path}")
 
-def create_pdf_from_kwargs_voucher(kwargs, v_entries, pdf_path, entity, with_bg, dest_excel_path):
+def create_pdf_from_kwargs_voucher(kwargs, v_entries, pdf_path, entity, with_bg, dest_excel_path, selected_idx, trans_type, mode):
     packet = io.BytesIO()
     c = canvas.Canvas(packet, pagesize=A4)
     width, height = A4
     height = height - 56
     c.setFont(font_name, font_size) 
-    cheque_date, cheque_no_val, cheque_IFSC, cheque_AC_no, eft_date, utrn_val, bank_name, bank_branch  = '', '', '','','','','',''
+    #cheque_date, cheque_no_val, IFSC, cheque_AC_no, eft_date, utrn_val, bank_name, bank_branch  = '', '', '','','','','',''
+    inst_date, inst_no_val, IFSC, inst_AC_no, bank_name, bank_branch  = '', '', '','','',''
 
     for i, voucher in enumerate(v_entries):
+        inv_no = voucher.get('inv_no')
+        if hasattr(inv_no, 'get'):
+            inv_no = inv_no.get()
+        else:
+            inv_no = ''
+        #inv_no = voucher['inv_no'].get()
         voucher_date = voucher['date'].get()
         pay_to = voucher['pay_to'].get()
         amount = voucher['amount'].get()
-        pan = voucher['pan'].get()
-        addr = voucher['addr'].get()
+        #pan = voucher['pan'].get()
+        pan = voucher.get('pan')
+        if hasattr(pan, 'get'):
+            pan = pan.get()
+        else:
+            pan = ''
+        #addr = voucher['addr'].get()
+        pdf_path_lower = pdf_path.lower()
+        if 'invoice' in pdf_path_lower :
+            addr_text = voucher['addr']  # Your Text widget
+            addr = addr_text.get("1.0", "end-1c")
+            challan = voucher['challan'].get()
+            cert = voucher['cert'].get()
+            CIN = challan + ' ' + cert
+            #mode = voucher['payment_mode']
+        else:
+            addr = voucher['addr'].get()
+            mode = voucher['payment_mode'].get()
+            CIN = ''
+
         pur_code = voucher['pur_code'].get()
         pur_head = voucher['pur_head'].get()
         pur_cat = voucher['pur_cat'].get()
         exp_type = voucher['exp_type'].get()
-        mode = voucher['payment_mode'].get()
         print_date = kwargs.get('Print Date', '')
         user = UI_support.get_user(amount)
 
-        canvas_update_voucher.draw_voucher_date(c, i, voucher_date)
+        #canvas_update_voucher.draw_voucher_date(c, i, voucher_date)
 
         if mode == "Cheque":
-            cheque_date, cheque_no_val, cheque_IFSC, cheque_AC_no = UI_support.get_cheque_data(voucher)
+            #cheque_date, cheque_no_val, IFSC, cheque_AC_no = UI_support.get_cheque_data(voucher)
+            inst_date, inst_no_val, IFSC, inst_AC_no = UI_support.get_cheque_data(voucher)
         elif mode == "EFT":
-            eft_date, utrn_val, bank_name, bank_branch  = UI_support.get_eft_data(voucher)
-        
-        canvas_update_voucher.draw_voucher(c, i, amount, pay_to, pan, addr, pur_code, pur_head, pur_cat, exp_type, mode, cheque_date, cheque_no_val, cheque_IFSC, cheque_AC_no, eft_date, utrn_val, bank_name, bank_branch, dest_excel_path, pdf_path, user, print_date)
+            #eft_date, utrn_val, IFSC, bank_name, bank_branch  = UI_support.get_eft_data(voucher)
+            inst_date, inst_no_val, IFSC, bank_name, bank_branch  = UI_support.get_eft_data(voucher)
+            
+        pdf_path_lower = pdf_path.lower()
+        if 'invoice' in pdf_path_lower :
+            #canvas_update_voucher.draw_voucher_date(c, 3, voucher_date)
+            #canvas_update_voucher.draw_invoice(c, amount, pay_to, addr, pur_code, pur_head, pur_cat, exp_type, mode, cheque_date, cheque_no_val, IFSC, cheque_AC_no, eft_date, utrn_val, bank_name, bank_branch, CIN, dest_excel_path, selected_idx)
+            canvas_update_voucher.draw_invoice(c, voucher_date, amount, pay_to, addr, pur_code, pur_head, pur_cat, exp_type, mode, inst_date, inst_no_val, IFSC, inst_AC_no, bank_name, bank_branch, CIN, dest_excel_path, selected_idx,inv_no, trans_type)
+
+        else:
+            canvas_update_voucher.draw_voucher_date(c, i, voucher_date)
+            #canvas_update_voucher.draw_voucher(c, i, amount, pay_to, pan, addr, pur_code, pur_head, pur_cat, exp_type, mode, cheque_date, cheque_no_val, IFSC, cheque_AC_no, eft_date, utrn_val, bank_name, bank_branch, dest_excel_path, pdf_path, user, print_date, CIN)
+            canvas_update_voucher.draw_voucher(c, i, amount, pay_to, pan, addr, pur_code, pur_head, pur_cat, exp_type, mode, inst_date, inst_no_val, IFSC, inst_AC_no, bank_name, bank_branch, dest_excel_path, pdf_path, user, print_date, CIN)
 
     # Save PDF
     c.showPage()
@@ -331,8 +365,11 @@ def create_pdf_from_kwargs_voucher(kwargs, v_entries, pdf_path, entity, with_bg,
                 os.startfile(absolute_path)
             else:
                 print("File not found on disk!")
-            duplicate_pdf_path_acct = os.path.join("Accountant_copy", entity_name, pdf_name)
-            merge_pdf(entity, new_pdf, duplicate_pdf_path_acct)
+            duplicate_pdf_path_acct = os.path.join("data/Accountant_copy", entity_name, pdf_name)
+            if 'Invoice' in entity_name:
+                generate_duplicates(pdf_path, entity)
+            else:
+                merge_pdf(entity, new_pdf, duplicate_pdf_path_acct)
         elif with_bg == 1:                                               # print without background
             merge_pdf(entity, new_pdf, pdf_path)
             generate_duplicates(pdf_path, entity)
