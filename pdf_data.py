@@ -27,6 +27,8 @@ font_size = config.getint('FontSettings', 'font_size')
 x_position = config.getint('FontSettings', 'y_position')
 y_position = config.getint('FontSettings', 'y_position')
 printer_name = config.get('printer', 'printer')
+entity_name = config.get('Filenames', 'entity_name')
+entity_names = entity_name.split(',')
 
 x_top_contributor_name = config.getint('top_dimensions', 'x_contributor_name')
 y_top_contributor_name = config.get('top_dimensions', 'y_contributor_name')
@@ -95,11 +97,17 @@ def get_base_path():
     return base_path
 
 # Function to create pdf contents
-def merge_pdf(entity, new_pdf, pdf_name):
+def merge_pdf(entity, new_pdf, pdf_name, selected_index):
+    print(f"merge_pdf {entity}, {new_pdf}, {pdf_name}")
     base_path = get_base_path()
-    image_path = os.path.join(base_path, "Images", entity)
+    #entity_name = os.path.splitext(entity)[0] 
+    if 'Receipt' in pdf_name:
+        image_path = os.path.join(base_path, "Business", entity_names[selected_index], "Receipt.pdf")
+    else:
+        image_path = os.path.join(base_path, "Business", entity_names[selected_index], entity)
+                              
+    print(f"Merge with {image_path}")
     existing_pdf = PdfReader(image_path) 
-    #print(f"Merge with {image_path}")
     writer = PdfWriter()
     for page in existing_pdf.pages:
         if len(new_pdf.pages) == 0:                             # Merge the new PDF with the old PDF (the original form)
@@ -114,23 +122,24 @@ def merge_pdf(entity, new_pdf, pdf_name):
         writer.write(f) 
 
 #Function to generate duplicate pdfs for Accountant and Office copy
-def generate_duplicates(pdf_path, entity):
+def generate_duplicates(pdf_path, entity, folder_name):
     pdf_name = os.path.basename(pdf_path)
     entity_name = os.path.splitext(entity)[0]
-    duplicate_pdf_path_acct = os.path.join("data/Accountant_copy", entity_name, pdf_name)
+    duplicate_pdf_path_acct = os.path.join("data/Accountant_copy", entity_name, folder_name, pdf_name)
     pdf_dir_acct = os.path.dirname(duplicate_pdf_path_acct)  # Extract the folder path
     os.makedirs(pdf_dir_acct, exist_ok=True)
     shutil.copy(pdf_path, duplicate_pdf_path_acct)
 
 # Function to generate pdf content based on the inputs given in the APP UI
-def create_pdf_from_kwargs(kwargs, pdf_path, entity, with_bg, top_text, bottom_text, pdf):
+def create_pdf_from_kwargs(kwargs, pdf_path, entity_name, with_bg, top_text, bottom_text, pdf, selected_index):
     packet = io.BytesIO()
     c = canvas.Canvas(packet, pagesize=A4)
     width, height = A4
     height = height - 56
-    
+    folder_name = 'Receipt'
+
     #x_offset = 90                                               # Set starting position for text
-    receipt = int(entity in ('SGPM_DN.pdf', 'SPK_DPS.pdf'))
+    receipt = int(entity_name in ('SGPM_DN', 'SPK_DPS'))
     
     c.setFont(font_name, font_size)     
     for key, value in kwargs.items():
@@ -212,7 +221,7 @@ def create_pdf_from_kwargs(kwargs, pdf_path, entity, with_bg, top_text, bottom_t
     if kwargs.get("Bar Code"):
         try:
             barcode_image = ImageReader(kwargs["Bar Code"])
-            name = entity.split(".")[0]
+            #name = entity.split(".")[0]
             c.drawImage(barcode_image, x_barcode, y_top_barcode_receipt, width=barcode_width, height=barcode_height)
             c.drawImage(barcode_image, x_barcode, y_bottom_barcode_receipt, width=barcode_width, height=barcode_height)
         except Exception as e:
@@ -230,13 +239,14 @@ def create_pdf_from_kwargs(kwargs, pdf_path, entity, with_bg, top_text, bottom_t
     else:
         print("The file is empty. Please check the PDF generation process.")
 
-    if not entity == 0:     
+    if not entity_name == 0:     
         pdf_name = os.path.basename(pdf_path)
-        entity_name = os.path.splitext(entity)[0]  
+        #entity_name = os.path.splitext(entity)[0]  
         if top_text == bottom_text:
-            duplicate_pdf_path = os.path.join("data/Office_copy", entity_name, pdf_name)
-            merge_pdf(entity, new_pdf, duplicate_pdf_path)
-        #print(f"Entity is {entity}")
+            duplicate_pdf_path = os.path.join("data/Office_copy", entity_name, folder_name, pdf_name)
+            print(f"MERGE create_pdf_from_kwargs {duplicate_pdf_path}")
+            merge_pdf(entity_name, new_pdf, duplicate_pdf_path, selected_index)
+        print(f"Entity is {entity_name}")
 
         if with_bg == 0: 
             if top_text != bottom_text:                                               #print without bg
@@ -245,7 +255,7 @@ def create_pdf_from_kwargs(kwargs, pdf_path, entity, with_bg, top_text, bottom_t
                     writer.add_page(page)
                 
                 if pdf:
-                    pdf_path = os.path.join("data/Accountant_copy", entity_name, pdf_name)
+                    pdf_path = os.path.join("data/Accountant_copy", entity_name, folder_name, pdf_name)
 
                 with open(str(pdf_path), "wb") as f:                     # Save the final filled PDF
                     writer.write(f)
@@ -258,12 +268,14 @@ def create_pdf_from_kwargs(kwargs, pdf_path, entity, with_bg, top_text, bottom_t
                         os.startfile(absolute_path)
                     else:
                         print("File not found on disk!")
-                duplicate_pdf_path_acct = os.path.join("data/Accountant_copy", entity_name, pdf_name)
-                merge_pdf(entity, new_pdf, duplicate_pdf_path_acct)
+                duplicate_pdf_path_acct = os.path.join("data/Accountant_copy", entity_name, folder_name, pdf_name)
+                print(f"MERGE create_pdf_from_kwargs 2 {duplicate_pdf_path_acct}")
+                merge_pdf(entity_name, new_pdf, duplicate_pdf_path_acct, selected_index)
         elif with_bg == 1:                                               # print with background
             if top_text != bottom_text:
-                merge_pdf(entity, new_pdf, pdf_path)
-                generate_duplicates(pdf_path, entity)
+                print(f"MERGE create_pdf_from_kwargs 3 {pdf_path}")
+                merge_pdf(entity_name, new_pdf, pdf_path, selected_index)
+                generate_duplicates(pdf_path, entity_name, folder_name)
                 absolute_path = os.path.abspath(pdf_path)
                 print(f"Attempting to open: {absolute_path}")
 
@@ -317,7 +329,7 @@ def create_pdf_from_kwargs_voucher(kwargs, v_entries, pdf_path, entity, with_bg,
         pur_cat = voucher['pur_cat'].get()
         exp_type = voucher['exp_type'].get()
         print_date = kwargs.get('Print Date', '')
-        user = UI_support.get_user(amount)
+        user = UI_support.get_user(amount, pdf_path_lower)
 
         #canvas_update_voucher.draw_voucher_date(c, i, voucher_date)
 
@@ -330,15 +342,13 @@ def create_pdf_from_kwargs_voucher(kwargs, v_entries, pdf_path, entity, with_bg,
             
         pdf_path_lower = pdf_path.lower()
         if 'invoice' in pdf_path_lower :
-            #canvas_update_voucher.draw_voucher_date(c, 3, voucher_date)
-            #canvas_update_voucher.draw_invoice(c, amount, pay_to, addr, pur_code, pur_head, pur_cat, exp_type, mode, cheque_date, cheque_no_val, IFSC, cheque_AC_no, eft_date, utrn_val, bank_name, bank_branch, CIN, dest_excel_path, selected_idx)
-            canvas_update_voucher.draw_invoice(c, voucher_date, amount, pay_to, addr, pur_code, pur_head, pur_cat, exp_type, mode, inst_date, inst_no_val, IFSC, inst_AC_no, bank_name, bank_branch, CIN, dest_excel_path, selected_idx,inv_no, trans_type)
-
+            canvas_update_voucher.draw_invoice(c, voucher_date, amount, pay_to, addr, pur_code, pur_head, pur_cat, exp_type, mode, inst_date, inst_no_val, IFSC, inst_AC_no, bank_name, bank_branch, CIN, dest_excel_path, selected_idx,inv_no, trans_type, user, print_date, entity_names[selected_idx])
+            folder_name = 'Invoice'
         else:
             canvas_update_voucher.draw_voucher_date(c, i, voucher_date)
-            #canvas_update_voucher.draw_voucher(c, i, amount, pay_to, pan, addr, pur_code, pur_head, pur_cat, exp_type, mode, cheque_date, cheque_no_val, IFSC, cheque_AC_no, eft_date, utrn_val, bank_name, bank_branch, dest_excel_path, pdf_path, user, print_date, CIN)
             canvas_update_voucher.draw_voucher(c, i, amount, pay_to, pan, addr, pur_code, pur_head, pur_cat, exp_type, mode, inst_date, inst_no_val, IFSC, inst_AC_no, bank_name, bank_branch, dest_excel_path, pdf_path, user, print_date, CIN)
-
+            folder_name = 'Voucher'
+            
     # Save PDF
     c.showPage()
     c.save()
@@ -351,7 +361,10 @@ def create_pdf_from_kwargs_voucher(kwargs, v_entries, pdf_path, entity, with_bg,
 
     if not entity == 0:     
         pdf_name = os.path.basename(pdf_path)
-        entity_name = os.path.splitext(entity)[0]  
+        entity_name = entity_names[selected_idx] #os.path.splitext(entity)[0]  
+        if 'Invoice' in pdf_path:
+            with_bg = 0
+            
         if with_bg == 0:                                            #print without bg
             writer = PdfWriter()
             for page in new_pdf.pages:
@@ -365,14 +378,15 @@ def create_pdf_from_kwargs_voucher(kwargs, v_entries, pdf_path, entity, with_bg,
                 os.startfile(absolute_path)
             else:
                 print("File not found on disk!")
-            duplicate_pdf_path_acct = os.path.join("data/Accountant_copy", entity_name, pdf_name)
-            if 'Invoice' in entity_name:
-                generate_duplicates(pdf_path, entity)
+            duplicate_pdf_path_acct = os.path.join("data/Accountant_copy", entity_name, folder_name, pdf_name)
+            if 'Invoice' in entity: #_name:
+                generate_duplicates(pdf_path, entity_name, folder_name)
             else:
-                merge_pdf(entity, new_pdf, duplicate_pdf_path_acct)
-        elif with_bg == 1:                                               # print without background
-            merge_pdf(entity, new_pdf, pdf_path)
-            generate_duplicates(pdf_path, entity)
+                merge_pdf(entity, new_pdf, duplicate_pdf_path_acct, selected_idx)
+        elif with_bg == 1:   
+            print(f"MERGE create_pdf_from_kwargs 4 {pdf_path}")                                            # print without background
+            merge_pdf(entity, new_pdf, pdf_path, selected_idx)
+            generate_duplicates(pdf_path, entity_name, folder_name)
             absolute_path = os.path.abspath(pdf_path)
             print(f"Attempting to open: {absolute_path}")
 
