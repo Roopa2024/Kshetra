@@ -20,7 +20,6 @@ import locale, re
 config_path = os.path.join(os.path.dirname(__file__), "config", "receipt.ini")
 config = configparser.ConfigParser()
 config.read(config_path)
-img_path = os.path.join(os.path.dirname(__file__), "Images", "Logo.jpg")
 font_name = config.get('FontSettings', 'font_name')
 copy_font_name = config.get('FontSettings', 'copy_font_name')
 font_name_bold = config.get('FontSettings', 'font_name_bold')
@@ -84,6 +83,7 @@ y_bottom_print_date = config.get('voucher_dimensions', 'y_bottom_print_date')
 
 x_inv_date = config.getint('invoice_dimensions', 'x_inv_date')
 y_inv_date = config.get('invoice_dimensions', 'y_inv_date')
+y_print_date = config.get('invoice_dimensions', 'y_print_date')
 
 # Converting date to the desired format
 def get_date_format(c, value):
@@ -347,11 +347,11 @@ def print_label_value(c, x_logo, x_position, y_position, label, value):
     y_position -= 15
     return y_position
 
-#def draw_invoice(c, amount, pay_to, addr, pur_code, pur_head, pur_cat, exp_type, mode, cheque_date, cheque_no_val, IFSC, cheque_AC_no, eft_date, utrn_val, bank_name, bank_branch, CIN, dest_excel_path, selected_idx):
-def draw_invoice(c, voucher_date, amount, pay_to, addr, pur_code, pur_head, pur_cat, exp_type, mode, inst_date, inst_no_val, IFSC, inst_AC_no, bank_name, bank_branch, CIN, dest_excel_path, selected_idx, inv_no, trans_type):
+def draw_invoice(c, voucher_date, amount, pay_to, addr, pur_code, pur_head, pur_cat, exp_type, mode, inst_date, inst_no_val, IFSC, inst_AC_no, bank_name, bank_branch, CIN, dest_excel_path, selected_idx, inv_no, trans_type, user, print_date, entity_name):
     print("PRINT INVOICE HERE")
     y_position = 550
     text = headings['heading'].split(',')
+    print_date = f"{user} {print_date}"
     fields = [
     ("Invoice # :", inv_no),
     ("Invoice Date:", voucher_date),
@@ -387,7 +387,7 @@ def draw_invoice(c, voucher_date, amount, pay_to, addr, pur_code, pur_head, pur_
     #y_position -= 20
 
     draw_code(c, dest_excel_path)
-
+    img_path = os.path.join(os.path.dirname(__file__), "Business", entity_name, "Logo.jpg")
     c.drawImage(img_path, x_logo, y_inv_start_qrcode, width=100, height=100, mask=None)
 
     c.setFont(font_name, font_size) 
@@ -410,3 +410,5 @@ def draw_invoice(c, voucher_date, amount, pay_to, addr, pur_code, pur_head, pur_
         elif mode == 'EFT':
             if label in ['EFT Date:', 'UTR No:', 'IFSC:', 'Bank Name:', 'Bank Branch:']:
                 y_position = print_label_value(c, x_logo, x_position, y_position, label, value)
+
+    draw_print_date(c, eval(y_print_date), print_date)
