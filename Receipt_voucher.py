@@ -19,7 +19,7 @@ voucher_entity_xcls = voucher_entity_xcl.split(',')
 #Mappings
 voucher_mapping_xcl = config.get('Filenames', 'voucher_mapping_files')
 voucher_mapping_xcls = voucher_mapping_xcl.split(',')
-receipt_mapping_xcl = config.get('Filenames', 'input_mapping_files')
+receipt_mapping_xcl = config.get('Filenames', 'receipt_mapping_files')
 receipt_mapping_xcls = receipt_mapping_xcl.split(',')
 
 def add_group_4and5(frame, group_frames, mapping_receipt_path):
