@@ -14,10 +14,12 @@ config = configparser.ConfigParser()
 config.read(config_path)
 
 font_settings = (config.get('FontSettings', 'font_name'), config.getint('FontSettings', 'font_size'))
-entity_xcl = config.get('Filenames', 'input_files')
-entity_xcls = entity_xcl.split(',')
-entity_mapping_xcl = config.get('Filenames', 'input_mapping_files')
-entity_mapping_xcls = entity_mapping_xcl.split(',')
+entity_name = config.get('Filenames', 'entity_name')
+entity_names = entity_name.split(',')
+receipt_entity_xcl = config.get('Filenames', 'receipt_input_files')
+receipt_entity_xcls = receipt_entity_xcl.split(',')
+receipt_mapping_xcl = config.get('Filenames', 'receipt_mapping_files')
+receipt_mapping_xcls = receipt_mapping_xcl.split(',')
 voucher_entity_xcl = config.get('Filenames', 'voucher_input_files')
 voucher_entity_xcls = voucher_entity_xcl.split(',')
 voucher_mapping_xcl = config.get('Filenames', 'voucher_mapping_files')
@@ -90,11 +92,14 @@ def update_amount_in_words(entry_widget, text_widget):
     text_widget.configure(state="disabled")
 
 def get_excel_file(selected_idx):
-    excel_path = resource_path(entity_xcls[selected_idx])
-    excel_mapping_path = resource_path(entity_mapping_xcls[selected_idx])
+    print(f"get_excel_file {receipt_entity_xcls[selected_idx]}")
+    excel_path = resource_path(receipt_entity_xcls[selected_idx])
+    excel_mapping_path = resource_path(receipt_mapping_xcls[selected_idx])
 
     file_name = os.path.basename(excel_path)
-    dest_excel_path = f"excel/{file_name}"
+    dest_excel_path = f"data/excel/{entity_names[selected_idx]}/{file_name}"
+    print(f"DEST to copy excel {dest_excel_path}")
+
     if not os.path.exists(dest_excel_path):
         os.makedirs(os.path.dirname(dest_excel_path), exist_ok=True)
         shutil.copy(excel_path, dest_excel_path)
@@ -179,11 +184,11 @@ def add_widgets_to_group(frame, fields):
             amount_in_words_text = UI_amount_in_words(frame, entry, len(fields), 60)
             input_vars["Amount in Words:"] = amount_in_words_text
 
-def generate_excel_file(selected_entity):
+def generate_excel_file(selected_entity, selected_index):
     print(f"generate_excel_file {selected_entity}")
     entity_path = resource_path(selected_entity)
     file_name = os.path.basename(entity_path)
-    dest_excel_path = f"excel/{file_name}"
+    dest_excel_path = f"data/excel/{entity_names[selected_index]}/{file_name}"
     if not os.path.exists(dest_excel_path):
         os.makedirs(os.path.dirname(dest_excel_path), exist_ok=True)
         shutil.copy(entity_path, dest_excel_path)
@@ -281,17 +286,20 @@ def clear_voucher_fields(voucher):
         except Exception as e:
             print(f"Error clearing field {key}: {e}")
 
-def get_user(amount):
+def get_user(amount, path):
     if amount:
         username = getpass.getuser()
-        authoriser = f'Issued By: {username}'
+        if 'invoice' in path:
+            authoriser = f'Printed By: {username}'
+        else:
+            authoriser = f'Issued By: {username}'
         return authoriser
     else:
         authoriser = ''
         return
 
 def voucher_print(path, mapping_voucher_path, voucher_entries, selected_indx, checkbox_var, selected_option, cheque_frame, online_frame):
-    dest_excel_path = generate_excel_file(path) #voucher_entity_xcls[selected_indx])
+    dest_excel_path = generate_excel_file(path, selected_indx) 
     print(f"DEST EXCEL {dest_excel_path}")
     if 'invoice' in dest_excel_path:
         mode = selected_option.get()
@@ -360,14 +368,19 @@ def voucher_print(path, mapping_voucher_path, voucher_entries, selected_indx, ch
         id, globe_id, bar_text = excel_data.increment_counter(selected_indx, dest_excel_path) 
         date = datetime.datetime.now()
         formatted_date = date.strftime("%d/%m/%Y %H.%M.%S")
-        
-        barcode_path = excel_data.generate_barcode(str(globe_id))   #barcode is temporarily saved in the current dir
-        excel_data.draw_text(f"{barcode_path}.png", bar_text) 
 
         if 'invoice' in dest_excel_path:
             voucher_no = inv_no
+            code_folder = 'Invoice'
         else:
             voucher_no = globe_id
+            code_folder = 'Voucher'
+        
+        barcode_path = excel_data.generate_barcode(str(globe_id))   #barcode is temporarily saved in the current dir
+        save_barcode_path = (f"data/code/{entity_names[selected_indx]}/{code_folder}/barcode/{id}.png")
+        save_barcode_path = os.path.abspath(save_barcode_path)
+        print(f"VOUCHER BARCODE PATH {save_barcode_path}")
+        excel_data.draw_text(f"{barcode_path}.png", bar_text, save_barcode_path) 
 
         print(f"VOUCHER Mode = {mode}")
         trans_type = excel_data.get_trans_type(mapping_voucher_path, mode)
@@ -406,24 +419,24 @@ def voucher_print(path, mapping_voucher_path, voucher_entries, selected_indx, ch
             'Proof' : '',
             'Narration' : '',
             'Print Date' : formatted_date,
-            'Issuer' : get_user(amount),
+            'Issuer' : get_user(amount, path),
             'Bar Code' : f"{barcode_path}.png",
             'TextColumn' : bar_text,
             'QR Code' : '',
         }
 
         #print(kwargs)
-        excel_data.save_to_excel(dest_excel_path, id, **kwargs)
+        excel_data.save_to_excel(dest_excel_path, id, entity_names[selected_indx], **kwargs)
     
     if 'invoice' in path:
-        selected_entity = invoice_entity[selected_indx]
+        selected_entity = "Invoice.pdf" #invoice_entity[selected_indx]
     else:
-        selected_entity = voucher_entity[selected_indx]
+        selected_entity = "Voucher.pdf" #voucher_entity[selected_indx]
 
-    entity_name = os.path.splitext(selected_entity)[0]       
-    os.makedirs(f"data/pdfs/{entity_name}", exist_ok=True) 
-    pdf_path = f"data/pdfs/{entity_name}/{kwargs['Id.']}.pdf"
-    print(f"PDF PATH {pdf_path} entity_name = {entity_name} and selected = {selected_entity}")
+    folder_name = os.path.splitext(selected_entity)[0]       
+    os.makedirs(f"data/pdfs/{entity_names[selected_indx]}/{folder_name}", exist_ok=True) 
+    pdf_path = f"data/pdfs/{entity_names[selected_indx]}/{folder_name}/{kwargs['Id.']}.pdf"
+    print(f"PDF PATH {pdf_path} entity_name = {entity_names[selected_indx]} and selected = {selected_entity}")
     
     pdf_data.create_pdf_from_kwargs_voucher(kwargs, voucher_entries, pdf_path, selected_entity, checkbox_var.get(), dest_excel_path, selected_indx, trans_type, mode)
     
@@ -471,13 +484,15 @@ def clear_fields(widget):
 
 #Receipt Cancel function
 def cancel(selected_indx):
-    dest_excel_path = generate_excel_file(entity_xcls[selected_indx])
+    dest_excel_path = generate_excel_file(receipt_entity_xcls[selected_indx], selected_indx)
     excel_data.cancel_last_row(dest_excel_path)
 
 
 # Submit Function
 def submit(selection_var, cheque_vars, online_vars, selected_indx, checkbox_var, cheque_frame, online_frame, mapping_receipt_path):   
     details = {}
+    folder_name = 'Receipt'
+    
     for label, var in input_vars.items():
         if isinstance(var, tk.StringVar):                       
             details[label] = var.get()
@@ -528,13 +543,16 @@ def submit(selection_var, cheque_vars, online_vars, selected_indx, checkbox_var,
         inst_date = bank_date
         inst_num = utrn
 
-    dest_excel_path = generate_excel_file(entity_xcls[selected_indx])
+    dest_excel_path = generate_excel_file(receipt_entity_xcls[selected_indx], selected_indx)
     id, globe_id, bar_text = excel_data.increment_counter(selected_indx, dest_excel_path) 
     date = datetime.datetime.now()
     formatted_date = date.strftime("%d/%m/%Y %H.%M.%S")
     #authoriser = getpass.getuser()
     barcode_path = excel_data.generate_barcode(str(globe_id))   #barcode is temporarily saved in the current dir
-    excel_data.draw_text(f"{barcode_path}.png", bar_text)       #adding TextColumn to the barcode
+    save_barcode_path = (f"data/code/{entity_names[selected_indx]}/Receipt/barcode/{id}.png")
+    save_barcode_path = os.path.abspath(save_barcode_path)
+    print(f"BARCODE PATH {save_barcode_path}")
+    excel_data.draw_text(f"{barcode_path}.png", bar_text, save_barcode_path)       #adding TextColumn to the barcode
 
     trans_type = excel_data.get_trans_type(mapping_receipt_path, selection_var.get())
 
@@ -565,29 +583,32 @@ def submit(selection_var, cheque_vars, online_vars, selected_indx, checkbox_var,
         'Proof' : '',
         'Narration' : '',
         'Print Date' : formatted_date,
-        'Issuer' : get_user(details.get("Amount:")),
+        'Issuer' : get_user(details.get("Amount:"), dest_excel_path),
         'Bar Code' : f"{barcode_path}.png",
         'TextColumn' : bar_text,
         'QR Code' : '',
     }
 
-    excel_data.save_to_excel(dest_excel_path, id, **kwargs)
+    excel_data.save_to_excel(dest_excel_path, id, entity_names[selected_indx], **kwargs)
 
-    qr_code_path = excel_data.generate_qr_code(kwargs)
-    kwargs["QR Code"] = qr_code_path                                                           # Update kwargs with QR Code path
+    # save_qrcode_path = (f"data/code/{entity_names[selected_indx]}/Receipt/qrcode/{id}.png")
+    # save_qrcode_path = os.path.abspath(save_qrcode_path)
+    # qr_code_path = excel_data.generate_qr_code(kwargs, save_qrcode_path)
+    #kwargs["QR Code"] = qr_code_path                                                           # Update kwargs with QR Code path
+    
     entity_name = os.path.splitext(entity[selected_indx])[0]                        
-    pdf_path = f"data/pdfs/{entity_name}/{kwargs['Id.']}.pdf"
-    os.makedirs(f"data/pdfs/{entity_name}", exist_ok=True)
+    pdf_path = f"data/pdfs/{entity_name}/{folder_name}/{kwargs['Id.']}.pdf"
+    os.makedirs(f"data/pdfs/{entity_name}/{folder_name}", exist_ok=True)
 
     with_bg = checkbox_var.get()
     if with_bg:
         pdf = 1
-        pdf_data.create_pdf_from_kwargs(kwargs, pdf_path, entity[selected_indx], checkbox_var.get(), copy_types[1], copy_types[2], pdf)
-        pdf_data.create_pdf_from_kwargs(kwargs, pdf_path, entity[selected_indx], checkbox_var.get(), copy_types[0], copy_types[0], pdf)
+        pdf_data.create_pdf_from_kwargs(kwargs, pdf_path, entity_name, checkbox_var.get(), copy_types[1], copy_types[2], pdf, selected_indx)
+        pdf_data.create_pdf_from_kwargs(kwargs, pdf_path, entity_name, checkbox_var.get(), copy_types[0], copy_types[0], pdf, selected_indx)
     else:
-        pdf_data.create_pdf_from_kwargs(kwargs, pdf_path, entity[selected_indx], checkbox_var.get(), copy_types[1], copy_types[2], 0)
-        pdf_data.create_pdf_from_kwargs(kwargs, pdf_path, entity[selected_indx], checkbox_var.get(), copy_types[1], copy_types[2], 1)   
-        pdf_data.create_pdf_from_kwargs(kwargs, pdf_path, entity[selected_indx], checkbox_var.get(), copy_types[0], copy_types[0], 1)
+        pdf_data.create_pdf_from_kwargs(kwargs, pdf_path, entity_name, checkbox_var.get(), copy_types[1], copy_types[2], 0, selected_indx)
+        pdf_data.create_pdf_from_kwargs(kwargs, pdf_path, entity_name, checkbox_var.get(), copy_types[1], copy_types[2], 1, selected_indx)   
+        pdf_data.create_pdf_from_kwargs(kwargs, pdf_path, entity_name, checkbox_var.get(), copy_types[0], copy_types[0], 1, selected_indx)
     
     try:
         df = pd.read_excel(dest_excel_path, sheet_name=xcl_sheet, header=1)
