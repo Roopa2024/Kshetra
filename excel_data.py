@@ -23,10 +23,10 @@ secret = config.get('Filenames', 'secret_key')
 secret_key = secret.split(',')
 pdf_heading = config['Heading']['pdf_heading']
 pdf_headings = pdf_heading.split(',')
-entity_xcl = config.get('Filenames', 'input_files')
-entity_xcls = entity_xcl.split(',')
-entity_mapping_xcl = config.get('Filenames', 'input_mapping_files')
-entity_mapping_xcls = entity_mapping_xcl.split(',')
+receipt_entity_xcl = config.get('Filenames', 'receipt_input_files')
+receipt_entity_xcls = receipt_entity_xcl.split(',')
+receipt_mapping_xcl = config.get('Filenames', 'receipt_mapping_files')
+receipt_mapping_xcls = receipt_mapping_xcl.split(',')
 
 code_mappings = config.get('Filenames', 'code_mapping_sheet')
 
@@ -91,7 +91,8 @@ def get_trans_type(mapping_path, mode):
     return value
 
 # Save data to the DB(excel sheet here)
-def save_to_excel(file_path, id, **kwargs):
+def save_to_excel(file_path, id, selected_entity, **kwargs):
+    print(f"save_to_excel : {file_path}")
     filename = os.path.basename(file_path)
     try:
         wb = load_workbook(file_path)                                   # Load the existing Excel file or create a new one
@@ -102,8 +103,18 @@ def save_to_excel(file_path, id, **kwargs):
         ws = wb[xcl_sheet]  #wb.active
         ws.append(list(kwargs.keys()))                                  
 
-    next_row = id + 2                                                   # Determine the next available row
-    qr_code_path = generate_qr_code(kwargs)                             # Generate QR Code before inserting data
+    next_row = id + 2    
+
+    if 'receipt' in file_path:
+        code_folder = 'Receipt'
+    elif 'voucher' in file_path:
+        code_folder = 'Voucher'
+    elif 'invoice' in file_path:
+        code_folder = 'Invoice'
+
+    save_qrcode_path = (f"data/code/{selected_entity}/{code_folder}/qrcode/{id}.png")
+    save_qrcode_path = os.path.abspath(save_qrcode_path)                                              # Determine the next available row
+    qr_code_path = generate_qr_code(kwargs, save_qrcode_path) #, 'tmp_qr.png')                             # Generate QR Code before inserting data
 
     # Insert data into the correct columns
     for col_num, (key, value) in enumerate(kwargs.items(), start=2):
@@ -112,22 +123,22 @@ def save_to_excel(file_path, id, **kwargs):
             ws.cell(row=next_row, column=col_num, value=value)
 
     # Insert barcode into the "Bar Code" column (if exists)
-    if "Bar Code" in kwargs and kwargs["Bar Code"]:
-        barcode_img = kwargs["Bar Code"]  
-        img = Image(barcode_img)
-        barcode_col = list(kwargs.keys()).index("Bar Code") + 1          # Find the column index for "Bar Code"
-        ws.add_image(img, ws.cell(row=next_row, column=barcode_col).coordinate)
+    # if "Bar Code" in kwargs and kwargs["Bar Code"]:
+    #     barcode_img = kwargs["Bar Code"]  
+    #     img = Image(barcode_img)
+    #     barcode_col = list(kwargs.keys()).index("Bar Code") + 1          # Find the column index for "Bar Code"
+    #     ws.add_image(img, ws.cell(row=next_row, column=barcode_col).coordinate)
 
-    # Insert QR Code image
-    if "QR Code" in kwargs:
-        img = Image(qr_code_path)
-        qr_col = list(kwargs.keys()).index("QR Code") + 1
-        ws.add_image(img, ws.cell(row=next_row, column=qr_col).coordinate)
+    # # Insert QR Code image
+    # if "QR Code" in kwargs:
+    #     img = Image(qr_code_path)
+    #     qr_col = list(kwargs.keys()).index("QR Code") + 1
+    #     ws.add_image(img, ws.cell(row=next_row, column=qr_col).coordinate)
 
     wb.save(file_path)                                                  # Save the workbook
 
 # Function to handle bracode and TextColumn placement
-def draw_text(barcode_path, text_label):
+def draw_text(barcode_path, text_label, save_barcode_path):
     barcode_image = PILImage.open(barcode_path)                         # Open the barcode image and get dimensions
     img_width, img_height = barcode_image.size
     new_height = img_height + 40                                        # Create a new image with extra space ABOVE the barcode
@@ -141,6 +152,9 @@ def draw_text(barcode_path, text_label):
     draw.text((text_x, text_y), text_label, fill="black", font=font)
     new_image.paste(barcode_image, (0, 45))                             # Paste barcode BELOW the text
     new_image.save(barcode_path)
+    if not os.path.exists(save_barcode_path):
+        os.makedirs(os.path.dirname(save_barcode_path), exist_ok=True)
+    new_image.save(save_barcode_path)
 
 # Function to generate barcode
 def generate_barcode(data, temp_path="temp_barcode"):
@@ -156,7 +170,7 @@ def generate_barcode(data, temp_path="temp_barcode"):
     return temp_path
 
 # Function to generate QR code
-def generate_qr_code(row_data, qr_path="temp_qr.png"):
+def generate_qr_code(row_data, save_qrcode_path, qr_path="temp_qr.png"):
     # Create a copy of row_data to prevent modifying the original dictionary
     qr_data = {key: value for key, value in row_data.items() if key != "Bar Code" and value}
 
@@ -174,16 +188,19 @@ def generate_qr_code(row_data, qr_path="temp_qr.png"):
     qr.add_data(qr_content)
     qr.make(fit=True)
     img = qr.make_image(fill="black", back_color="white")               # Create an image from the QR Code
-    img.save(qr_path)                                                   # Save QR Code
+    img.save(qr_path)  
+    if not os.path.exists(save_qrcode_path):
+        os.makedirs(os.path.dirname(save_qrcode_path), exist_ok=True)
+    img.save(save_qrcode_path)                                                 # Save QR Code
     return qr_path
 
 def cancel_last_row(excel_path):
     wb = load_workbook(excel_path)
-    ws = wb.active
+    ws = wb[xcl_sheet] #wb.active
 
-    header = [cell.value for cell in ws[1]]                             # Find the header row and column index of "Globe stat"
+    header = [cell.value for cell in ws[2]]                             # Find the header row and column index of "Globe stat"
     try:
-        col_index = header.index("Globe Stat.") + 1                     # openpyxl is 1-indexed
+        col_index = header.index("Globe Stat") + 1                     # openpyxl is 1-indexed
     except ValueError:
         raise Exception("Column 'Globe stat' not found")
 
@@ -200,3 +217,4 @@ def cancel_last_row(excel_path):
         cell.font = strike_font
     # Save changes
     wb.save(excel_path)
+    messagebox.showinfo(title="Success", message=f"Row {last_row} successfully cancelled")
