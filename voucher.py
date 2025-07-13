@@ -441,7 +441,7 @@ def draw_voucher(frame, selected_indx, root, checkbox_var):
     group_frames = {}
     group_frames_hidden = {}
     #global head_to_categories, head_to_expense_type, code_to_data
-    dest_excel_path = UI_support.generate_excel_file(voucher_entity_xcls[selected_indx])
+    dest_excel_path = UI_support.generate_excel_file(voucher_entity_xcls[selected_indx], selected_indx)
     mapping_voucher_path = voucher_mapping_xcls[selected_indx]
     print(f"EXCEL VOUCHER {dest_excel_path} and {mapping_voucher_path}")
 
@@ -528,7 +528,7 @@ def draw_inv_voucher(frame, selected_indx, root, checkbox_var):
     voucher_entries = []
     group_frames = {}
     group_frames_hidden = {}
-    invoice_excel_path = UI_support.generate_excel_file(invoice_entity_xcls[selected_indx])
+    invoice_excel_path = UI_support.generate_excel_file(invoice_entity_xcls[selected_indx], selected_indx)
     mapping_inv_path = invoice_mapping_xcls[selected_indx]
     print(f"EXCEL INVOICE {invoice_excel_path} and {mapping_inv_path}")
 
@@ -616,4 +616,3 @@ def draw_inv_voucher(frame, selected_indx, root, checkbox_var):
     submit_button = tk.Button(print_frame, text="Print", font=font_settings, command=lambda: UI_support.voucher_print(invoice_entity_xcls[selected_indx], mapping_inv_path, voucher_entries, selected_indx, checkbox_var, selection_var, cheque_frame, online_frame))   # Submit Button
     submit_button.grid(row=2, column=2, padx=10, pady=10) 
     submit_button.config(state="disabled")
-
